@@ -1,0 +1,22 @@
+aliases:
+  delivery_volume:
+    - объем доставки
+    - доставлено
+  route_distance:
+    - расстояние маршрута
+    - пробег
+  on_time_delivery_rate:
+    - своевременная доставка
+    - доля своевременной доставки
+
+relation_templates:
+  - source_metric_code: route_distance
+    target_metric_code: zatraty_na_gsm
+    relation_type: driver
+    reason: "Пробег влияет на расход топлива."
+    confidence: 0.72
+
+external_context_suggestions:
+  - diesel_price_index
+  - weather_risk_index
+  - road_restriction_days

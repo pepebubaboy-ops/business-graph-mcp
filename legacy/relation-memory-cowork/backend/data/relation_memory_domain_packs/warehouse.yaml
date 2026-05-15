@@ -1,0 +1,17 @@
+aliases:
+  inventory_days:
+    - дни запаса
+    - запас в днях
+  storage_cost:
+    - затраты на хранение
+    - хранение
+  stockout_rate:
+    - доля дефицита
+    - дефицит
+
+relation_templates:
+  - source_metric_code: inventory_days
+    target_metric_code: storage_cost
+    relation_type: driver
+    reason: "Дни запаса влияют на стоимость хранения."
+    confidence: 0.76

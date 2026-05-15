@@ -1,0 +1,12 @@
+neo4j
+openpyxl
+pydantic
+pydantic-settings
+PyYAML
+pytest
+fastapi
+uvicorn
+python-multipart
+httpx
+pypdf
+mcp

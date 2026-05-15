@@ -1,0 +1,22 @@
+aliases:
+  orders:
+    - заказы
+    - количество заказов
+  avg_price:
+    - средняя цена
+    - средний чек
+  revenue:
+    - выручка
+    - продажи
+
+relation_templates:
+  - source_metric_code: orders
+    target_metric_code: revenue
+    relation_type: driver
+    reason: "Количество заказов влияет на выручку."
+    confidence: 0.78
+  - source_metric_code: avg_price
+    target_metric_code: revenue
+    relation_type: driver
+    reason: "Средняя цена влияет на выручку."
+    confidence: 0.74

@@ -1,0 +1,161 @@
+aliases:
+  sebestoimost_ftl_total:
+    - себестоимость ftl
+    - себестоимость перевозки груза
+  fot_ak_s_uch_nalogov:
+    - фот ак
+    - фот ак с уч налогов
+    - фот ак с уч.налогов
+  zatraty_na_gsm:
+    - затраты на гсм
+    - гсм
+    - топливо
+  z_ch_i_remonty_s_uch_avtoshin_kap_remontov:
+    - з/ч и ремонты
+    - ремонты
+    - ремонты с уч автошин
+  platon_platnaya_doroga:
+    - платон
+    - платон платная дорога
+    - платон, платная дорога
+  spisanie_po_lizingu:
+    - списание %% по лизингу
+    - списание по лизингу
+    - лизинг
+  amortizatsiya_ts:
+    - амортизация тс
+    - амортизация
+  prochee:
+    - прочее
+  diesel_price_index:
+    - индекс цены дизеля
+    - цена дизеля
+    - дизель
+  key_rate_cb:
+    - ключевая ставка
+    - ставка цб
+  market_ftl_rate_index:
+    - рыночная ставка ftl
+    - ставка ftl
+  state_toll_index:
+    - индекс гос сборов
+    - гос сборы
+  road_restriction_days:
+    - дорожные ограничения
+    - дни дорожных ограничений
+  weather_risk_index:
+    - погодный риск
+    - погода
+
+technical_row_patterns:
+  - "^проверка$"
+  - "^расшифровка"
+  - "^\\*+расшифровка"
+  - "^итого проверка"
+  - "^контроль"
+  - "^комментар"
+
+target_metric_patterns:
+  - "себестоимость"
+  - "полная с/с"
+  - "total"
+  - "итого"
+
+semantic_type_patterns:
+  target_metric:
+    - "sebestoimost"
+    - "total"
+    - "полная"
+  cost_component:
+    - "fot"
+    - "gsm"
+    - "remont"
+    - "platon"
+    - "lizing"
+    - "amortiz"
+    - "прочее"
+    - "затраты"
+    - "расход"
+    - "аренда"
+    - "страх"
+    - "налог"
+    - "штраф"
+    - "спецодеж"
+    - "з/ч"
+    - "ремонт"
+    - "амортизац"
+    - "командиров"
+    - "медосмотр"
+    - "мобильн"
+    - "коммуналь"
+  business_driver:
+    - "пробег"
+    - "количество"
+    - "накладн"
+    - "водители"
+  denominator:
+    - "км"
+    - "шт"
+    - "наклад"
+  external_context:
+    - "index"
+    - "индекс"
+    - "ставка"
+    - "дизель"
+
+expected_dimensions:
+  - month
+  - report_sheet
+  - source_workbook
+  - scenario
+
+relation_templates:
+  - source_metric_code: fot_ak_s_uch_nalogov
+    target_metric_code: sebestoimost_ftl_total
+    relation_type: component
+    reason: "ФОТ входит в состав себестоимости."
+    confidence: 0.92
+  - source_metric_code: zatraty_na_gsm
+    target_metric_code: sebestoimost_ftl_total
+    relation_type: component
+    reason: "ГСМ входит в состав себестоимости."
+    confidence: 0.92
+  - source_metric_code: z_ch_i_remonty_s_uch_avtoshin_kap_remontov
+    target_metric_code: sebestoimost_ftl_total
+    relation_type: component
+    reason: "Ремонты входят в состав себестоимости."
+    confidence: 0.9
+  - source_metric_code: platon_platnaya_doroga
+    target_metric_code: sebestoimost_ftl_total
+    relation_type: component
+    reason: "Платон и платные дороги входят в состав себестоимости."
+    confidence: 0.9
+  - source_metric_code: spisanie_po_lizingu
+    target_metric_code: sebestoimost_ftl_total
+    relation_type: component
+    reason: "Лизинговые проценты входят в состав себестоимости."
+    confidence: 0.88
+  - source_metric_code: amortizatsiya_ts
+    target_metric_code: sebestoimost_ftl_total
+    relation_type: component
+    reason: "Амортизация входит в состав себестоимости."
+    confidence: 0.88
+  - source_metric_code: prochee
+    target_metric_code: sebestoimost_ftl_total
+    relation_type: component
+    reason: "Прочие расходы входят в состав себестоимости."
+    confidence: 0.84
+
+external_context_suggestions:
+  - diesel_price_index
+  - key_rate_cb
+  - market_ftl_rate_index
+  - state_toll_index
+  - road_restriction_days
+  - weather_risk_index
+
+unit_patterns:
+  - "руб"
+  - "млн"
+  - "км"
+  - "%"

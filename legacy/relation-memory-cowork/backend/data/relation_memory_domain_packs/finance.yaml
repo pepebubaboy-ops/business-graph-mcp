@@ -1,0 +1,22 @@
+aliases:
+  revenue:
+    - выручка
+    - доходы
+  gross_margin:
+    - валовая маржа
+    - маржа
+  total_cost:
+    - совокупные затраты
+    - общие затраты
+
+relation_templates:
+  - source_metric_code: revenue
+    target_metric_code: gross_margin
+    relation_type: driver
+    reason: "Выручка влияет на маржу."
+    confidence: 0.78
+  - source_metric_code: total_cost
+    target_metric_code: gross_margin
+    relation_type: inverse_driver
+    reason: "Рост затрат снижает маржу."
+    confidence: 0.78

@@ -1,0 +1,17 @@
+aliases:
+  headcount:
+    - численность
+    - штат
+  payroll_cost:
+    - фонд оплаты труда
+    - фот
+  turnover_rate:
+    - текучесть
+    - текучесть персонала
+
+relation_templates:
+  - source_metric_code: headcount
+    target_metric_code: payroll_cost
+    relation_type: driver
+    reason: "Численность влияет на ФОТ."
+    confidence: 0.78

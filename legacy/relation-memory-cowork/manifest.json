@@ -1,0 +1,81 @@
+{
+  "dxt_version": "0.1",
+  "name": "relation-memory-cowork",
+  "version": "0.1.0",
+  "display_name": "Relation Memory",
+  "description": "Local MCP server for extracting evidence-backed metric relations from text and spreadsheets, with Neo4j-backed memory.",
+  "author": {
+    "name": "Relation Memory"
+  },
+  "server": {
+    "type": "python",
+    "entry_point": "backend/mcp_server.py",
+    "mcp_config": {
+      "command": "python",
+      "args": [
+        "-m",
+        "backend.mcp_server"
+      ],
+      "env": {
+        "RELATION_MEMORY_MCP_WORKSPACE_ROOT": "${user_config.workspace_root}",
+        "RELATION_MEMORY_MCP_MAX_FILE_SIZE_MB": "${user_config.max_file_size_mb}",
+        "NEO4J_URI": "${user_config.neo4j_uri}",
+        "NEO4J_USERNAME": "${user_config.neo4j_user}",
+        "NEO4J_PASSWORD": "${user_config.neo4j_password}",
+        "LLM_BASE_URL": "${user_config.llm_base_url}",
+        "LLM_MODEL": "${user_config.llm_model}",
+        "LLM_API_KEY": "${user_config.llm_api_key}"
+      }
+    }
+  },
+  "user_config": {
+    "workspace_root": {
+      "type": "string",
+      "title": "Workspace root",
+      "description": "Local folder that Relation Memory is allowed to read and write.",
+      "required": true
+    },
+    "neo4j_uri": {
+      "type": "string",
+      "title": "Neo4j URI",
+      "default": "bolt://localhost:7687",
+      "required": true
+    },
+    "neo4j_user": {
+      "type": "string",
+      "title": "Neo4j username",
+      "default": "neo4j",
+      "required": true
+    },
+    "neo4j_password": {
+      "type": "string",
+      "title": "Neo4j password",
+      "sensitive": true,
+      "required": true
+    },
+    "llm_base_url": {
+      "type": "string",
+      "title": "LLM API base URL",
+      "default": "http://localhost:11434/v1",
+      "required": true
+    },
+    "llm_model": {
+      "type": "string",
+      "title": "LLM model",
+      "default": "qwen3:14b",
+      "required": true
+    },
+    "llm_api_key": {
+      "type": "string",
+      "title": "LLM API key",
+      "sensitive": true,
+      "required": true
+    },
+    "max_file_size_mb": {
+      "type": "number",
+      "title": "Max file size MB",
+      "default": 25,
+      "required": true
+    }
+  }
+}
