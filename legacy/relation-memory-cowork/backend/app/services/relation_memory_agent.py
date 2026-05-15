@@ -183,7 +183,9 @@ class RelationMemoryAgent:
             "pending_confirmations": [item.model_dump() for item in pending_confirmations],
         }
         try:
-            payload = self.llm_client.chat_json(system_prompt=system_prompt, user_payload=user_payload)
+            payload = self.llm_client.chat_json(
+                system_prompt=system_prompt, user_payload=user_payload
+            )
         except LlmJsonError as exc:
             return UserAnswerMemoryResult(
                 assistant_message="Запомнил ответ как контекст, но не смог надежно разобрать его в новые связи.",
@@ -209,7 +211,9 @@ class RelationMemoryAgent:
         if inquiry_questions:
             question_text = inquiry_questions[0]["prompt"]
         else:
-            question_text = "Опишите, какие метрики в этих данных действительно связаны бизнес-процессом."
+            question_text = (
+                "Опишите, какие метрики в этих данных действительно связаны бизнес-процессом."
+            )
         return (
             f"Я нашел {len(observations)} наблюдений, {len(hypotheses)} гипотез и "
             f"{len(memory_priors)} подтвержденных связей в памяти. Первый вопрос: {question_text}"
@@ -217,7 +221,9 @@ class RelationMemoryAgent:
 
     def _safe_chat(self, *, system_prompt: str, user_payload: dict[str, Any]) -> LlmCandidateResult:
         try:
-            payload = self.llm_client.chat_json(system_prompt=system_prompt, user_payload=user_payload)
+            payload = self.llm_client.chat_json(
+                system_prompt=system_prompt, user_payload=user_payload
+            )
         except LlmJsonError as exc:
             return LlmCandidateResult(
                 assistant_message="Не смог надежно разобрать ответ LLM в JSON, поэтому ничего не предлагаю к сохранению.",
@@ -263,7 +269,7 @@ class RelationMemoryAnswerNarrator:
             "Сделай ответ коротким и человеческим: 2-4 предложения, без слов hops, strength, cypher, metric_code. "
             "Если связь прямая, скажи это явно. Если есть косвенные связи, назови 1-2 наиболее заметные. "
             "Названия метрик бери ровно из source_label, target_label и path_text; не заменяй их английскими label или metric_code. "
-            "Верни strict JSON only: {\"answer\": \"...\"}."
+            'Верни strict JSON only: {"answer": "..."}.'
         )
         user_payload = {
             "question": question,
@@ -282,7 +288,9 @@ class RelationMemoryAnswerNarrator:
             ],
         }
         try:
-            payload = self.llm_client.chat_json(system_prompt=system_prompt, user_payload=user_payload)
+            payload = self.llm_client.chat_json(
+                system_prompt=system_prompt, user_payload=user_payload
+            )
         except LlmJsonError as exc:
             return GraphAnswerNarrationResult(
                 answer=fallback_answer,
@@ -306,7 +314,9 @@ class RelationMemoryExternalContextSuggester:
         enabled: bool | None = None,
         max_suggestions: int = 3,
     ):
-        self.enabled = settings.RELATION_MEMORY_EXTERNAL_CONTEXT_LLM_ENABLED if enabled is None else enabled
+        self.enabled = (
+            settings.RELATION_MEMORY_EXTERNAL_CONTEXT_LLM_ENABLED if enabled is None else enabled
+        )
         self.max_suggestions = max_suggestions
         self.llm_client = llm_client or RelationMemoryLlmClient(
             timeout_seconds=int(settings.RELATION_MEMORY_LLM_ANSWER_TIMEOUT_SECONDS)
@@ -341,19 +351,29 @@ class RelationMemoryExternalContextSuggester:
             "max_suggestions": self.max_suggestions,
         }
         try:
-            payload = self.llm_client.chat_json(system_prompt=system_prompt, user_payload=user_payload)
+            payload = self.llm_client.chat_json(
+                system_prompt=system_prompt, user_payload=user_payload
+            )
         except LlmJsonError as exc:
-            return ExternalContextSuggestionResult(suggestions=[], warnings=[f"external_context_fallback:{exc}"])
+            return ExternalContextSuggestionResult(
+                suggestions=[], warnings=[f"external_context_fallback:{exc}"]
+            )
         raw_suggestions = payload.get("suggestions") or []
         if not isinstance(raw_suggestions, list):
-            return ExternalContextSuggestionResult(suggestions=[], warnings=["external_context_fallback:invalid_suggestions"])
+            return ExternalContextSuggestionResult(
+                suggestions=[], warnings=["external_context_fallback:invalid_suggestions"]
+            )
         return ExternalContextSuggestionResult(
-            suggestions=[item for item in raw_suggestions[: self.max_suggestions] if isinstance(item, dict)],
+            suggestions=[
+                item for item in raw_suggestions[: self.max_suggestions] if isinstance(item, dict)
+            ],
             warnings=[],
         )
 
 
-def normalize_candidate_payload(raw: dict[str, Any], *, default_source: str) -> dict[str, Any] | None:
+def normalize_candidate_payload(
+    raw: dict[str, Any], *, default_source: str
+) -> dict[str, Any] | None:
     source = normalize_metric_code(str(raw.get("source_metric_code") or raw.get("source") or ""))
     target = normalize_metric_code(str(raw.get("target_metric_code") or raw.get("target") or ""))
     if not source or not target or source == "metric" or target == "metric":
@@ -368,7 +388,9 @@ def normalize_candidate_payload(raw: dict[str, Any], *, default_source: str) -> 
         confidence_value = 0.5
     raw_score = raw.get("score")
     try:
-        score_value = min(1.0, max(0.0, float(raw_score if raw_score is not None else confidence_value)))
+        score_value = min(
+            1.0, max(0.0, float(raw_score if raw_score is not None else confidence_value))
+        )
     except (TypeError, ValueError):
         score_value = confidence_value
     return {

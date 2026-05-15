@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, Literal
 from uuid import uuid4
@@ -62,7 +62,7 @@ class EvidenceRef(BaseModel):
     locator: dict[str, Any] = Field(default_factory=dict)
     method: EvidenceQuality
     quote_or_value: str | None = None
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class BusinessNode(BaseModel):
@@ -75,7 +75,7 @@ class BusinessNode(BaseModel):
     confidence: float = Field(default=1.0, ge=0, le=1)
     source_refs: list[str] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class BusinessRelation(BaseModel):
@@ -91,10 +91,10 @@ class BusinessRelation(BaseModel):
     evidence_refs: list[EvidenceRef] = Field(default_factory=list)
     explanation: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
     @model_validator(mode="after")
-    def confirmed_requires_evidence(self) -> "BusinessRelation":
+    def confirmed_requires_evidence(self) -> BusinessRelation:
         if self.status == RelationStatus.CONFIRMED and not self.evidence_refs:
             raise ValueError("Confirmed relations must include at least one evidence ref.")
         return self

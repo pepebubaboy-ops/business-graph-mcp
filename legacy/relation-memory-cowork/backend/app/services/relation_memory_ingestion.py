@@ -13,7 +13,14 @@ from pypdf import PdfReader
 
 
 SUPPORTED_EXTENSIONS = {".xlsx", ".xlsm", ".txt", ".md", ".pdf"}
-DIMENSION_HEADERS = {"month", "region", "business_unit", "warehouse", "product_category", "scenario"}
+DIMENSION_HEADERS = {
+    "month",
+    "region",
+    "business_unit",
+    "warehouse",
+    "product_category",
+    "scenario",
+}
 
 
 class IngestionError(ValueError):
@@ -131,7 +138,9 @@ def ingest_file_payloads(files: list[UploadedFilePayload]) -> DocumentBundle:
     return bundle
 
 
-def _ingest_xlsx(payload: UploadedFilePayload, document: DocumentRecord, bundle: DocumentBundle) -> None:
+def _ingest_xlsx(
+    payload: UploadedFilePayload, document: DocumentRecord, bundle: DocumentBundle
+) -> None:
     workbook = load_workbook(BytesIO(payload.content), data_only=True, read_only=True)
     try:
         for sheet in workbook.worksheets:
@@ -188,12 +197,17 @@ def _chunk_text(document_id: str, text: str, *, chunk_size: int = 4000) -> list[
     return chunks
 
 
-def write_xlsx_payloads_to_tempdir(payloads: list[UploadedFilePayload], temp_dir: str | Path) -> list[Path]:
+def write_xlsx_payloads_to_tempdir(
+    payloads: list[UploadedFilePayload], temp_dir: str | Path
+) -> list[Path]:
     paths: list[Path] = []
     root = Path(temp_dir)
     root.mkdir(parents=True, exist_ok=True)
     for index, payload in enumerate(payloads):
-        safe_name = re.sub(r"[^a-zA-Zа-яА-ЯёЁ0-9_.-]+", "_", payload.filename).strip("_") or f"upload_{index}.xlsx"
+        safe_name = (
+            re.sub(r"[^a-zA-Zа-яА-ЯёЁ0-9_.-]+", "_", payload.filename).strip("_")
+            or f"upload_{index}.xlsx"
+        )
         output_path = root / f"{index}_{safe_name}"
         output_path.write_bytes(payload.content)
         paths.append(output_path)

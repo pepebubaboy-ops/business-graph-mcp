@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from app.services.relation_memory_question_models import RUSSIAN_METRIC_ALIASES, RUSSIAN_METRIC_DISPLAY_LABELS
+from app.services.relation_memory_question_models import (
+    RUSSIAN_METRIC_ALIASES,
+    RUSSIAN_METRIC_DISPLAY_LABELS,
+)
 
 
 def metric_default_label(code: str) -> str:
@@ -39,9 +42,13 @@ def ensure_metric_entry(
         {
             "code": cleaned_code,
             "label": cleaned_label,
-            "aliases": unique_texts([cleaned_code, cleaned_code.replace("_", " "), *(aliases or [])]),
+            "aliases": unique_texts(
+                [cleaned_code, cleaned_code.replace("_", " "), *(aliases or [])]
+            ),
             "approved_aliases": [],
-            "source_labels": unique_texts(source_labels if source_labels is not None else [cleaned_label]),
+            "source_labels": unique_texts(
+                source_labels if source_labels is not None else [cleaned_label]
+            ),
             "source": source,
         },
     )

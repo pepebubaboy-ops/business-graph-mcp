@@ -69,7 +69,9 @@ class NormalizedQuestion:
     warnings: list[str] = field(default_factory=list)
     clarification_needed: bool = False
     clarification: PendingClarification | None = None
-    updated_context: RelationMemoryConversationContext = field(default_factory=RelationMemoryConversationContext)
+    updated_context: RelationMemoryConversationContext = field(
+        default_factory=RelationMemoryConversationContext
+    )
     confirmed_aliases: list[ConfirmedMetricAlias] = field(default_factory=list)
 
 

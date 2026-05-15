@@ -16,7 +16,14 @@ class InMemoryGraphRepository:
         self.nodes[node.id] = node
 
     def upsert_relation(self, relation: BusinessRelation) -> None:
-        key = f"{relation.workspace_id}:{relation.from_id}:{relation.type}:{relation.to_id}:{relation.status}"
+        key_parts = (
+            relation.workspace_id,
+            relation.from_id,
+            relation.type,
+            relation.to_id,
+            relation.status,
+        )
+        key = ":".join(key_parts)
         self.relations[key] = relation
 
     def list_relations(self, *, workspace_id: str = "default") -> list[BusinessRelation]:

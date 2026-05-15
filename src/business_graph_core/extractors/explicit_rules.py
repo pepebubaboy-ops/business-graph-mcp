@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Iterable
 
 from business_graph_core.models import (
     BusinessNode,
@@ -39,7 +39,9 @@ class ExtractedRelations:
 class ExplicitRulesExtractor:
     """Extract confirmed metric relations from dependency_rules rows."""
 
-    def extract(self, parsed_file: ParsedFile, *, workspace_id: str = "default") -> ExtractedRelations:
+    def extract(
+        self, parsed_file: ParsedFile, *, workspace_id: str = "default"
+    ) -> ExtractedRelations:
         nodes_by_id: dict[str, BusinessNode] = {}
         relations: list[BusinessRelation] = []
 

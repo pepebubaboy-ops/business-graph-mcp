@@ -1,8 +1,11 @@
 # Business Graph MCP
 
-Универсальный backend-core для анализа бизнес-взаимосвязей в файлах с MCP/OpenAPI-адаптерами.
+Универсальный backend-core для анализа бизнес-взаимосвязей в файлах
+с MCP/OpenAPI-адаптерами.
 
-Цель проекта: принимать файлы и описания процессов, строить evidence-backed business graph, отвечать на вопросы руководства и предлагать пайплайны автоматизаций без привязки к одному UI или LLM-клиенту.
+Цель проекта: принимать файлы и описания процессов, строить evidence-backed
+business graph, отвечать на вопросы руководства и предлагать пайплайны
+автоматизаций без привязки к одному UI или LLM-клиенту.
 
 ## Основная идея
 
@@ -20,7 +23,9 @@ File Intelligence + Relation Mining + Graph QA + Pipeline Planner
 Neo4j + Postgres + Object Storage
 ```
 
-MCP — это не ядро продукта. MCP — внешний адаптер. Ядро должно быть переиспользуемым для Claude, Open WebUI и собственного интерфейса.
+MCP — это не ядро продукта. MCP — внешний адаптер.
+Ядро должно быть переиспользуемым для Claude, Open WebUI
+и собственного интерфейса.
 
 ## Быстрый старт локально
 
@@ -52,24 +57,15 @@ cp .env.example .env
 make docker-up
 ```
 
-## Как опубликовать как публичный GitHub repo
+## Репозиторий
 
-Я не могу создать публичный GitHub-репозиторий за вас без доступа к вашему аккаунту. Выполните локально:
+Публичный репозиторий уже создан:
 
-```bash
-git init
-git add .
-git commit -m "Initial Business Graph MCP scaffold"
-
-gh repo create business-graph-mcp --public --source=. --remote=origin --push
-```
-
-Альтернатива без GitHub CLI:
+- <https://github.com/pepebubaboy-ops/business-graph-mcp>
 
 ```bash
-git remote add origin git@github.com:<YOUR_ORG_OR_USER>/business-graph-mcp.git
-git branch -M main
-git push -u origin main
+git clone git@github.com:pepebubaboy-ops/business-graph-mcp.git
+cd business-graph-mcp
 ```
 
 ## Документы
@@ -78,7 +74,8 @@ git push -u origin main
 - `docs/ARCHITECTURE.md` — целевая архитектура.
 - `docs/CODEX_PROMPTS.md` — последовательность промптов для Codex.
 - `docs/REVIEW_LOOP.md` — как ревьюить результат после каждого промпта.
-- `legacy/relation-memory-cowork/` — текущий MCPB/Relation Memory пакет как источник для миграции.
+- `legacy/relation-memory-cowork/` — текущий MCPB/Relation Memory пакет
+  как источник для миграции.
 
 ## MVP tools
 

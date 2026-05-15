@@ -27,7 +27,11 @@ def planner_trace_event(plan: Any) -> dict[str, Any]:
     intent = trace_intent_label(plan.intent)
     evidence_type = trace_evidence_type_label(plan.evidence_type)
     source = "LLM" if plan.planner_source == "llm" else "детерминированный классификатор"
-    direction = f", направление: {trace_direction_label(plan.requested_direction)}" if plan.requested_direction else ""
+    direction = (
+        f", направление: {trace_direction_label(plan.requested_direction)}"
+        if plan.requested_direction
+        else ""
+    )
     return {
         "stage": "planner",
         "title": "QuestionPlanner",
@@ -53,7 +57,9 @@ def planner_trace_event(plan: Any) -> dict[str, Any]:
 def resolver_trace_event(resolution: Any, display_labels: dict[str, str]) -> dict[str, Any]:
     metrics = trace_metrics(resolution.normalized.matched_metrics, display_labels)
     if metrics:
-        summary = "Сопоставил метрики: " + "; ".join(trace_metric_summary(metric) for metric in metrics[:4])
+        summary = "Сопоставил метрики: " + "; ".join(
+            trace_metric_summary(metric) for metric in metrics[:4]
+        )
     elif getattr(resolution.normalized, "clarification_needed", False):
         summary = "Не выбрал метрику автоматически: требуется уточнение."
     else:
@@ -71,7 +77,9 @@ def resolver_trace_event(resolution: Any, display_labels: dict[str, str]) -> dic
             "handled": bool(resolution.handled),
             "matched_metrics": metrics,
             "warnings": list(getattr(resolution.normalized, "warnings", []) or []),
-            "clarification_needed": bool(getattr(resolution.normalized, "clarification_needed", False)),
+            "clarification_needed": bool(
+                getattr(resolution.normalized, "clarification_needed", False)
+            ),
             "clarification": clarification,
         },
     }
@@ -84,7 +92,9 @@ def evidence_trace_event(bundle: Any) -> dict[str, Any]:
         top = trace_row_summary(bundle.rows[0])
         summary = f"Нашел evidence: строк {row_count}, фактов {claim_count}. Главное: {top}"
     else:
-        summary = "Подходящих строк evidence не найдено; ответ будет строиться из fallback или уточнения."
+        summary = (
+            "Подходящих строк evidence не найдено; ответ будет строиться из fallback или уточнения."
+        )
     return {
         "stage": "evidence",
         "title": "EvidenceRetriever",
@@ -136,14 +146,18 @@ def answer_trace_event(
             "answer_mode_before_validation": draft.answer_mode,
             "answer_mode": validated.answer_mode,
             "confidence": bundle.confidence,
-            "warnings": list(dict.fromkeys([*answer.warnings, *bundle.warnings, *validated.warnings])),
+            "warnings": list(
+                dict.fromkeys([*answer.warnings, *bundle.warnings, *validated.warnings])
+            ),
             "matched_metrics": trace_metrics(answer.matched_metrics, display_labels),
             "answer_preview": short_label(validated.answer, limit=220),
         },
     }
 
 
-def trace_metrics(metrics: list[dict[str, Any]], display_labels: dict[str, str]) -> list[dict[str, Any]]:
+def trace_metrics(
+    metrics: list[dict[str, Any]], display_labels: dict[str, str]
+) -> list[dict[str, Any]]:
     result = []
     for metric in metrics:
         item = {
@@ -264,7 +278,9 @@ def append_evidence_caveats(answer: str, warnings: list[str]) -> str:
     if "pending_evidence_needs_confirmation" in warnings and not any(
         token in normalized for token in ("провер", "подтвержд", "approval", "pending")
     ):
-        result = f"{result} Часть связей требует подтверждения перед использованием как факта.".strip()
+        result = (
+            f"{result} Часть связей требует подтверждения перед использованием как факта.".strip()
+        )
     if "weak_evidence" in warnings and "слаб" not in normalized and "низк" not in normalized:
         result = f"{result} Уверенность по части evidence ниже средней.".strip()
     return result

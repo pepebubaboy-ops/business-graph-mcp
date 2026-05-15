@@ -91,37 +91,37 @@ class BusinessMetricModelNeo4jClient:
             model_row = dict(model_record)
             metric_rows = list(
                 session.run(
-                "MATCH (:BusinessModel {key: $key})-[:HAS_METRIC]->(m:Metric) "
-                "RETURN m.code AS code, m.name AS name, m.description AS description, "
-                "m.unit AS unit, m.kind AS kind, m.category AS category, m.time_grain AS time_grain, "
-                "coalesce(m.scope_tags, []) AS scope_tags, coalesce(m.aliases, []) AS aliases, "
-                "m.source_refs_json AS source_refs_json, m.active AS active "
-                "ORDER BY m.code",
-                key=model_key,
+                    "MATCH (:BusinessModel {key: $key})-[:HAS_METRIC]->(m:Metric) "
+                    "RETURN m.code AS code, m.name AS name, m.description AS description, "
+                    "m.unit AS unit, m.kind AS kind, m.category AS category, m.time_grain AS time_grain, "
+                    "coalesce(m.scope_tags, []) AS scope_tags, coalesce(m.aliases, []) AS aliases, "
+                    "m.source_refs_json AS source_refs_json, m.active AS active "
+                    "ORDER BY m.code",
+                    key=model_key,
                 )
             )
             relation_rows = list(
                 session.run(
-                "MATCH (:BusinessModel {key: $key})-[:HAS_RELATION]->(r:Relation)-[:OUTPUT_TO]->(target:Metric) "
-                "OPTIONAL MATCH (source:Metric)-[ir:INPUT_TO]->(r) "
-                "RETURN r.id AS id, r.name AS name, r.description AS description, "
-                "target.code AS target_metric_code, r.relation_kind AS relation_kind, "
-                "r.output_mode AS output_mode, r.expression AS expression, r.confidence AS confidence, "
-                "r.status AS status, r.source_refs_json AS source_refs_json, "
-                "r.applies_to_json AS applies_to_json, "
-                "coalesce(r.tags, []) AS tags, "
-                "collect({alias: ir.alias, metric_code: source.code, value_mode: ir.value_mode, lag_periods: ir.lag_periods, required: ir.required, slice_overrides_json: ir.slice_overrides_json}) AS inputs "
-                "ORDER BY r.id",
-                key=model_key,
+                    "MATCH (:BusinessModel {key: $key})-[:HAS_RELATION]->(r:Relation)-[:OUTPUT_TO]->(target:Metric) "
+                    "OPTIONAL MATCH (source:Metric)-[ir:INPUT_TO]->(r) "
+                    "RETURN r.id AS id, r.name AS name, r.description AS description, "
+                    "target.code AS target_metric_code, r.relation_kind AS relation_kind, "
+                    "r.output_mode AS output_mode, r.expression AS expression, r.confidence AS confidence, "
+                    "r.status AS status, r.source_refs_json AS source_refs_json, "
+                    "r.applies_to_json AS applies_to_json, "
+                    "coalesce(r.tags, []) AS tags, "
+                    "collect({alias: ir.alias, metric_code: source.code, value_mode: ir.value_mode, lag_periods: ir.lag_periods, required: ir.required, slice_overrides_json: ir.slice_overrides_json}) AS inputs "
+                    "ORDER BY r.id",
+                    key=model_key,
                 )
             )
             observation_rows = list(
                 session.run(
-                "MATCH (:BusinessModel {key: $key})-[:HAS_OBSERVATION]->(o:Observation) "
-                "RETURN o.metric_code AS metric_code, o.period AS period, o.scenario AS scenario, "
-                "o.slice_json AS slice_json, o.value AS value, o.source_refs_json AS source_refs_json "
-                "ORDER BY o.metric_code, o.period, o.scenario",
-                key=model_key,
+                    "MATCH (:BusinessModel {key: $key})-[:HAS_OBSERVATION]->(o:Observation) "
+                    "RETURN o.metric_code AS metric_code, o.period AS period, o.scenario AS scenario, "
+                    "o.slice_json AS slice_json, o.value AS value, o.source_refs_json AS source_refs_json "
+                    "ORDER BY o.metric_code, o.period, o.scenario",
+                    key=model_key,
                 )
             )
 
@@ -189,7 +189,10 @@ class BusinessMetricModelNeo4jClient:
                 "time_grain": metric.time_grain,
                 "scope_tags": metric.scope_tags,
                 "aliases": metric.aliases,
-                "source_refs_json": json.dumps([item.model_dump(mode="json") for item in metric.source_refs], ensure_ascii=False),
+                "source_refs_json": json.dumps(
+                    [item.model_dump(mode="json") for item in metric.source_refs],
+                    ensure_ascii=False,
+                ),
                 "active": metric.active,
             }
             for metric in bundle.metrics
@@ -218,11 +221,16 @@ class BusinessMetricModelNeo4jClient:
                 "relation_kind": relation.relation_kind,
                 "output_mode": relation.output_mode,
                 "expression": relation.expression,
-                "applies_to_json": json.dumps(relation.applies_to, ensure_ascii=False, sort_keys=True),
+                "applies_to_json": json.dumps(
+                    relation.applies_to, ensure_ascii=False, sort_keys=True
+                ),
                 "confidence": relation.confidence,
                 "status": relation.status,
                 "tags": relation.tags,
-                "source_refs_json": json.dumps([item.model_dump(mode="json") for item in relation.source_refs], ensure_ascii=False),
+                "source_refs_json": json.dumps(
+                    [item.model_dump(mode="json") for item in relation.source_refs],
+                    ensure_ascii=False,
+                ),
             }
             for relation in bundle.relations
         ]
@@ -252,7 +260,9 @@ class BusinessMetricModelNeo4jClient:
                         "value_mode": binding.value_mode,
                         "lag_periods": binding.lag_periods,
                         "required": binding.required,
-                        "slice_overrides_json": json.dumps(binding.slice_overrides, ensure_ascii=False, sort_keys=True),
+                        "slice_overrides_json": json.dumps(
+                            binding.slice_overrides, ensure_ascii=False, sort_keys=True
+                        ),
                     }
                 )
         session.run(
@@ -276,7 +286,10 @@ class BusinessMetricModelNeo4jClient:
                 "scenario": observation.scenario,
                 "slice_json": json.dumps(observation.slice, ensure_ascii=False, sort_keys=True),
                 "value": observation.value,
-                "source_refs_json": json.dumps([item.model_dump(mode="json") for item in observation.source_refs], ensure_ascii=False),
+                "source_refs_json": json.dumps(
+                    [item.model_dump(mode="json") for item in observation.source_refs],
+                    ensure_ascii=False,
+                ),
             }
             for observation in bundle.observations
         ]

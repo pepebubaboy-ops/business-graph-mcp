@@ -12,7 +12,10 @@ from app.services.relation_memory_candidates import relation_key
 from app.services.relation_memory_ingestion import UploadedFilePayload, normalize_metric_code
 from app.services.relation_memory_metric_map import display_metric_label
 from app.services.relation_memory_neo4j import RelationMemoryNeo4jClient
-from app.services.relation_memory_session import RelationMemorySessionService, RelationMemorySessionState
+from app.services.relation_memory_session import (
+    RelationMemorySessionService,
+    RelationMemorySessionState,
+)
 
 
 MCP_ALLOWED_EXTENSIONS = {".xlsx", ".xlsm", ".txt", ".md", ".pdf"}
@@ -68,7 +71,9 @@ class RelationMemoryEngine:
     ):
         self.graph_client = graph_client or RelationMemoryNeo4jClient()
         self.service = service or RelationMemorySessionService(graph_client=self.graph_client)
-        self.max_file_size_bytes = int(max_file_size_mb or settings.RELATION_MEMORY_MCP_MAX_FILE_SIZE_MB) * 1024 * 1024
+        self.max_file_size_bytes = (
+            int(max_file_size_mb or settings.RELATION_MEMORY_MCP_MAX_FILE_SIZE_MB) * 1024 * 1024
+        )
         self.auto_saved_by_session: dict[str, list[dict[str, Any]]] = {}
         self.skipped_by_session: dict[str, list[dict[str, Any]]] = {}
 
@@ -109,7 +114,10 @@ class RelationMemoryEngine:
         state = self._state(session_id)
         return {
             "session_id": session_id,
-            "candidate_relations": [self._candidate_payload(candidate, state) for candidate in state.pending_confirmations.values()],
+            "candidate_relations": [
+                self._candidate_payload(candidate, state)
+                for candidate in state.pending_confirmations.values()
+            ],
             "warnings": list(state.warnings),
         }
 
@@ -141,7 +149,10 @@ class RelationMemoryEngine:
         review_path = output_path / "relations_review.xlsx"
         evidence_path = output_path / "evidence_report.md"
         auto_saved = self.auto_saved_by_session.get(session_id, [])
-        candidates = [self._candidate_payload(candidate, state) for candidate in state.pending_confirmations.values()]
+        candidates = [
+            self._candidate_payload(candidate, state)
+            for candidate in state.pending_confirmations.values()
+        ]
         self._write_review_xlsx(review_path, auto_saved, candidates)
         self._write_evidence_report(evidence_path, auto_saved, candidates)
         return {
@@ -168,7 +179,9 @@ class RelationMemoryEngine:
             payload["warnings"].append(f"Neo4j check failed: {exc}")
         return payload
 
-    def _finalize_analysis(self, session_id: str, workspace_root: Path, *, domain: str) -> dict[str, Any]:
+    def _finalize_analysis(
+        self, session_id: str, workspace_root: Path, *, domain: str
+    ) -> dict[str, Any]:
         state = self._state(session_id)
         auto_saved, skipped = self._auto_save_explicit_relations(state)
         self.auto_saved_by_session[session_id] = auto_saved
@@ -178,7 +191,10 @@ class RelationMemoryEngine:
             workspace_root=workspace_root,
             output_dir="output",
         )
-        candidates = [self._candidate_payload(candidate, state) for candidate in state.pending_confirmations.values()]
+        candidates = [
+            self._candidate_payload(candidate, state)
+            for candidate in state.pending_confirmations.values()
+        ]
         return {
             "session_id": session_id,
             "domain": domain,
@@ -194,7 +210,9 @@ class RelationMemoryEngine:
             "artifact_paths": artifact_paths,
         }
 
-    def _auto_save_explicit_relations(self, state: RelationMemorySessionState) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    def _auto_save_explicit_relations(
+        self, state: RelationMemorySessionState
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
         auto_saved: list[dict[str, Any]] = []
         skipped: list[dict[str, Any]] = []
         for dependency in state.snapshot.dependencies:
@@ -203,7 +221,11 @@ class RelationMemoryEngine:
                 if saved:
                     auto_saved.append(saved)
             elif dependency.get("source_metric_code") and dependency.get("target_metric_code"):
-                skipped.append(self._skipped_payload(dependency, "dependency is inferred or lacks explicit evidence"))
+                skipped.append(
+                    self._skipped_payload(
+                        dependency, "dependency is inferred or lacks explicit evidence"
+                    )
+                )
 
         for candidate in list(state.pending_confirmations.values()):
             if self._is_explicit_text_candidate(candidate):
@@ -213,7 +235,11 @@ class RelationMemoryEngine:
                 if saved or relation_key(candidate) in state.confirmed_relation_keys:
                     state.pending_confirmations.pop(candidate.id, None)
             else:
-                skipped.append(self._skipped_payload(candidate.model_dump(), "candidate requires manual review"))
+                skipped.append(
+                    self._skipped_payload(
+                        candidate.model_dump(), "candidate requires manual review"
+                    )
+                )
         return auto_saved, skipped
 
     def _is_explicit_dependency(self, dependency: dict[str, Any]) -> bool:
@@ -236,7 +262,9 @@ class RelationMemoryEngine:
             return False
         return any(marker in lowered for marker in EXPLICIT_TEXT_MARKERS)
 
-    def _save_dependency_relation(self, state: RelationMemorySessionState, dependency: dict[str, Any]) -> dict[str, Any] | None:
+    def _save_dependency_relation(
+        self, state: RelationMemorySessionState, dependency: dict[str, Any]
+    ) -> dict[str, Any] | None:
         if relation_key(dependency) in state.confirmed_relation_keys:
             return None
         evidence = self._dependency_evidence_payload(state, dependency)
@@ -260,7 +288,9 @@ class RelationMemoryEngine:
         state.confirmed_relation_keys.add(relation_key(dependency))
         return self._confirmed_payload(saved, evidence)
 
-    def _save_candidate_relation(self, state: RelationMemorySessionState, candidate: CandidateRelation) -> dict[str, Any] | None:
+    def _save_candidate_relation(
+        self, state: RelationMemorySessionState, candidate: CandidateRelation
+    ) -> dict[str, Any] | None:
         if relation_key(candidate) in state.confirmed_relation_keys:
             return None
         evidence = self._candidate_evidence_payload(candidate, state)
@@ -297,14 +327,18 @@ class RelationMemoryEngine:
             "status": "auto_saved",
         }
 
-    def _candidate_payload(self, candidate: CandidateRelation, state: RelationMemorySessionState) -> dict[str, Any]:
+    def _candidate_payload(
+        self, candidate: CandidateRelation, state: RelationMemorySessionState
+    ) -> dict[str, Any]:
         return {
             **candidate.model_dump(),
             "status": "candidate",
             "evidence": [self._candidate_evidence_payload(candidate, state)],
         }
 
-    def _candidate_evidence_payload(self, candidate: CandidateRelation, state: RelationMemorySessionState) -> dict[str, Any]:
+    def _candidate_evidence_payload(
+        self, candidate: CandidateRelation, state: RelationMemorySessionState
+    ) -> dict[str, Any]:
         filename = self._document_filename(state, candidate.source_document_id)
         source_sheet, source_range = self._sheet_range_from_evidence(candidate.evidence)
         return {
@@ -314,11 +348,14 @@ class RelationMemoryEngine:
             "source_range": source_range,
             "quote": candidate.evidence,
             "reason": candidate.note or candidate.evidence,
-            "evidence_type": candidate.evidence_type or ("text" if candidate.source == "llm_text" else "candidate"),
+            "evidence_type": candidate.evidence_type
+            or ("text" if candidate.source == "llm_text" else "candidate"),
             "source_document_id": candidate.source_document_id,
         }
 
-    def _dependency_evidence_payload(self, state: RelationMemorySessionState, dependency: dict[str, Any]) -> dict[str, Any]:
+    def _dependency_evidence_payload(
+        self, state: RelationMemorySessionState, dependency: dict[str, Any]
+    ) -> dict[str, Any]:
         reason = str(dependency.get("reason") or "")
         evidence_type = "dependency_rule"
         match = re.match(r"^([a-z_]+):\s*(.+)$", reason, flags=re.IGNORECASE)
@@ -355,11 +392,17 @@ class RelationMemoryEngine:
         return ""
 
     def _single_xlsx_filename(self, state: RelationMemorySessionState) -> str:
-        xlsx_documents = [document.filename for document in state.bundle.documents if document.file_type in {"xlsx", "xlsm"}]
+        xlsx_documents = [
+            document.filename
+            for document in state.bundle.documents
+            if document.file_type in {"xlsx", "xlsm"}
+        ]
         return xlsx_documents[0] if len(xlsx_documents) == 1 else ""
 
     def _sheet_range_from_evidence(self, evidence: str) -> tuple[str, str]:
-        match = re.search(r"([A-Za-zА-Яа-яЁё0-9 _.-]+)!([A-Z]{1,3}\d+(?::[A-Z]{1,3}\d+)?)", str(evidence or ""))
+        match = re.search(
+            r"([A-Za-zА-Яа-яЁё0-9 _.-]+)!([A-Z]{1,3}\d+(?::[A-Z]{1,3}\d+)?)", str(evidence or "")
+        )
         if not match:
             return "", ""
         return match.group(1).strip(), match.group(2)
@@ -396,9 +439,13 @@ class RelationMemoryEngine:
             raise ValueError(f"Input path is not a file: {path}")
         extension = path.suffix.lower()
         if extension not in MCP_ALLOWED_EXTENSIONS:
-            raise ValueError(f"Unsupported file extension for MCP relation memory: {extension or '<none>'}")
+            raise ValueError(
+                f"Unsupported file extension for MCP relation memory: {extension or '<none>'}"
+            )
         if path.stat().st_size > self.max_file_size_bytes:
-            raise ValueError(f"Input file exceeds max size of {self.max_file_size_bytes // (1024 * 1024)} MB: {path.name}")
+            raise ValueError(
+                f"Input file exceeds max size of {self.max_file_size_bytes // (1024 * 1024)} MB: {path.name}"
+            )
 
     def _resolve_output_dir(self, root: Path, output_dir: str | Path) -> Path:
         path = Path(output_dir).expanduser()
@@ -427,7 +474,9 @@ class RelationMemoryEngine:
         except KeyError as exc:
             raise KeyError(f"Unknown relation memory session: {session_id}") from exc
 
-    def _write_review_xlsx(self, path: Path, auto_saved: list[dict[str, Any]], candidates: list[dict[str, Any]]) -> None:
+    def _write_review_xlsx(
+        self, path: Path, auto_saved: list[dict[str, Any]], candidates: list[dict[str, Any]]
+    ) -> None:
         workbook = Workbook()
         sheet = workbook.active
         sheet.title = "relations_review"
@@ -469,9 +518,14 @@ class RelationMemoryEngine:
         workbook.save(path)
         workbook.close()
 
-    def _write_evidence_report(self, path: Path, auto_saved: list[dict[str, Any]], candidates: list[dict[str, Any]]) -> None:
+    def _write_evidence_report(
+        self, path: Path, auto_saved: list[dict[str, Any]], candidates: list[dict[str, Any]]
+    ) -> None:
         lines = ["# Relation Memory Evidence", ""]
-        for title, relations in (("Auto-saved relations", auto_saved), ("Candidate relations", candidates)):
+        for title, relations in (
+            ("Auto-saved relations", auto_saved),
+            ("Candidate relations", candidates),
+        ):
             lines.extend([f"## {title}", ""])
             if not relations:
                 lines.extend(["None.", ""])

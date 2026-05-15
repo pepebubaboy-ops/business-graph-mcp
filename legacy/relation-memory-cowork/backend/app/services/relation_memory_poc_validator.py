@@ -57,7 +57,9 @@ class RelationMemoryPocValidator:
 
     def validate(self) -> dict[str, Any]:
         catalog = self.graph_client.read_catalog()
-        query_results = [self._evaluate_query(item, catalog) for item in self.manifest.get("golden_queries", [])]
+        query_results = [
+            self._evaluate_query(item, catalog) for item in self.manifest.get("golden_queries", [])
+        ]
         passed = sum(1 for item in query_results if item["passed"])
         return {
             "manifest": str(self.manifest_path),
@@ -71,12 +73,22 @@ class RelationMemoryPocValidator:
         resolved = self._resolve_question(str(query["question"]), catalog)
         expected = query.get("expects", {})
         comparisons = {
-            "primary_metrics": self._compare_subset(expected.get("primary_metrics", []), resolved["primary_metrics"]),
-            "secondary_metrics": self._compare_subset(expected.get("secondary_metrics", []), resolved["secondary_metrics"]),
+            "primary_metrics": self._compare_subset(
+                expected.get("primary_metrics", []), resolved["primary_metrics"]
+            ),
+            "secondary_metrics": self._compare_subset(
+                expected.get("secondary_metrics", []), resolved["secondary_metrics"]
+            ),
             "datasets": self._compare_subset(expected.get("datasets", []), resolved["datasets"]),
-            "entity_filters": self._compare_subset(expected.get("entity_filters", []), resolved["entity_filters"]),
-            "period_filters": self._compare_subset(expected.get("period_filters", []), resolved["period_filters"]),
-            "dependency_path": self._compare_subset(expected.get("dependency_path", []), resolved["dependency_path"]),
+            "entity_filters": self._compare_subset(
+                expected.get("entity_filters", []), resolved["entity_filters"]
+            ),
+            "period_filters": self._compare_subset(
+                expected.get("period_filters", []), resolved["period_filters"]
+            ),
+            "dependency_path": self._compare_subset(
+                expected.get("dependency_path", []), resolved["dependency_path"]
+            ),
         }
         return {
             "id": query["id"],
@@ -103,7 +115,9 @@ class RelationMemoryPocValidator:
         secondary_metrics = self._resolve_secondary_metrics(question, primary_metrics, catalog)
         datasets = self._resolve_datasets(primary_metrics + secondary_metrics, catalog)
         entity_filters, period_filters = self._resolve_filters(question, catalog)
-        dependency_chains = self._resolve_dependency_chains(primary_metrics, secondary_metrics, catalog)
+        dependency_chains = self._resolve_dependency_chains(
+            primary_metrics, secondary_metrics, catalog
+        )
         dependency_path = self._flatten_dependency_chains(dependency_chains)
         return {
             "primary_metrics": primary_metrics,
@@ -181,7 +195,11 @@ class RelationMemoryPocValidator:
                 score += 1.5
             elif hops == 3:
                 score += 0.5
-            raw_terms = [source_metric["code"], source_metric["label"], *source_metric.get("aliases", [])]
+            raw_terms = [
+                source_metric["code"],
+                source_metric["label"],
+                *source_metric.get("aliases", []),
+            ]
             for term in raw_terms:
                 normalized = _normalize_text(str(term))
                 if not normalized:
@@ -250,7 +268,11 @@ class RelationMemoryPocValidator:
                         queue.append((source_metric, next_path, next_strength))
         return sorted(
             ranked.values(),
-            key=lambda item: (item["min_hops"], -float(item["total_strength"]), item["source_metric_code"]),
+            key=lambda item: (
+                item["min_hops"],
+                -float(item["total_strength"]),
+                item["source_metric_code"],
+            ),
         )
 
     def _resolve_datasets(self, metric_codes: list[str], catalog: dict[str, Any]) -> list[str]:
@@ -260,7 +282,9 @@ class RelationMemoryPocValidator:
                 scores[dataset_key] = scores.get(dataset_key, 0) + 1
         return [item[0] for item in sorted(scores.items(), key=lambda item: (-item[1], item[0]))]
 
-    def _resolve_filters(self, question: str, catalog: dict[str, Any]) -> tuple[list[str], list[str]]:
+    def _resolve_filters(
+        self, question: str, catalog: dict[str, Any]
+    ) -> tuple[list[str], list[str]]:
         normalized_question = _normalize_text(question)
         question_tokens = set(re.findall(r"[a-zа-яё0-9_]+", question.lower()))
         entity_filters: list[str] = []
@@ -370,5 +394,10 @@ class RelationMemoryPocValidator:
                         )
         return sorted(
             path_records,
-            key=lambda item: (item["hops"], -float(item["total_strength"]), item["source_code"], item["target_code"]),
+            key=lambda item: (
+                item["hops"],
+                -float(item["total_strength"]),
+                item["source_code"],
+                item["target_code"],
+            ),
         )[:50]

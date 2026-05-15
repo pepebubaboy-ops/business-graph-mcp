@@ -188,7 +188,21 @@ RUSSIAN_STEM_SUFFIXES = (
     "у",
     "ю",
 )
-ENGLISH_STEM_SUFFIXES = ("ingly", "edly", "ments", "ment", "ings", "ers", "ies", "ing", "ied", "ers", "ed", "es", "s")
+ENGLISH_STEM_SUFFIXES = (
+    "ingly",
+    "edly",
+    "ments",
+    "ment",
+    "ings",
+    "ers",
+    "ies",
+    "ing",
+    "ied",
+    "ers",
+    "ed",
+    "es",
+    "s",
+)
 SELECTION_WORDS = {
     "1": 0,
     "первая": 0,
@@ -219,9 +233,24 @@ SEMANTIC_ALIAS_HINTS = {
     "amortiz": ["амортизация"],
     "амортиз": ["амортизация"],
     "platon": ["платон", "платная дорога", "платные дороги", "платон и платные дороги"],
-    "state_toll": ["государственные дорожные сборы", "дорожные сборы", "гос сборы", "стоимость платных дорог", "тариф платных дорог"],
-    "toll": ["государственные дорожные сборы", "дорожные сборы", "гос сборы", "стоимость платных дорог", "тариф платных дорог"],
-    "toll_tariff": ["тарифная политика операторов платных дорог", "тарифы операторов платных дорог"],
+    "state_toll": [
+        "государственные дорожные сборы",
+        "дорожные сборы",
+        "гос сборы",
+        "стоимость платных дорог",
+        "тариф платных дорог",
+    ],
+    "toll": [
+        "государственные дорожные сборы",
+        "дорожные сборы",
+        "гос сборы",
+        "стоимость платных дорог",
+        "тариф платных дорог",
+    ],
+    "toll_tariff": [
+        "тарифная политика операторов платных дорог",
+        "тарифы операторов платных дорог",
+    ],
     "лизинг": ["лизинг"],
     "lizing": ["лизинг"],
     "remont": ["ремонт", "ремонты"],
@@ -253,7 +282,11 @@ def normalize_user_text(value: str) -> str:
     text = normalize_phrase_text(value).lower().replace("ё", "е")
     text = text.replace("/", " ").replace("_", " ")
     text = re.sub(r"[^a-zа-я0-9+ -]+", " ", text)
-    tokens = [expand_abbreviation(_fold_mixed_script_token(token)) for token in re.split(r"\s+", text) if token]
+    tokens = [
+        expand_abbreviation(_fold_mixed_script_token(token))
+        for token in re.split(r"\s+", text)
+        if token
+    ]
     return " ".join(tokens).strip()
 
 

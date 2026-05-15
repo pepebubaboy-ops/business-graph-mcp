@@ -4,7 +4,7 @@ from pathlib import Path
 
 from business_graph_core.extractors.explicit_rules import ExplicitRulesExtractor
 from business_graph_core.graph.memory_repo import InMemoryGraphRepository
-from business_graph_core.models import AnalysisRequest, AnalysisResult, RelationStatus
+from business_graph_core.models import AnalysisRequest, AnalysisResult
 from business_graph_core.parsers.excel import ExcelParser
 
 

@@ -350,7 +350,9 @@ def _split_multi(value: Any, separator: str = "|") -> list[str]:
     return [part.strip() for part in str(value or "").split(separator) if part.strip()]
 
 
-def _sheet_rows(path: Path, sheet_name: str | None = None) -> tuple[list[str], list[dict[str, Any]]]:
+def _sheet_rows(
+    path: Path, sheet_name: str | None = None
+) -> tuple[list[str], list[dict[str, Any]]]:
     workbook = load_workbook(path, data_only=True, read_only=True)
     if sheet_name:
         if sheet_name not in workbook.sheetnames:
@@ -383,7 +385,9 @@ def _pearson_correlation(values_x: list[float], values_y: list[float]) -> float 
     centered_x = [value - mean_x for value in values_x]
     centered_y = [value - mean_y for value in values_y]
     numerator = sum(left * right for left, right in zip(centered_x, centered_y, strict=True))
-    denominator = math.sqrt(sum(value * value for value in centered_x) * sum(value * value for value in centered_y))
+    denominator = math.sqrt(
+        sum(value * value for value in centered_x) * sum(value * value for value in centered_y)
+    )
     if denominator == 0:
         return None
     return numerator / denominator
@@ -393,7 +397,11 @@ def _normalized_mae(predicted: list[float], actual: list[float]) -> float | None
     if len(predicted) != len(actual) or not actual:
         return None
     scale = max(1.0, sum(abs(value) for value in actual) / len(actual))
-    return sum(abs(left - right) for left, right in zip(predicted, actual, strict=True)) / len(actual) / scale
+    return (
+        sum(abs(left - right) for left, right in zip(predicted, actual, strict=True))
+        / len(actual)
+        / scale
+    )
 
 
 def _aggregation_mode_for_metric(metric_code: str) -> str:
@@ -459,7 +467,9 @@ class RelationMemorySnapshot:
 
 
 class RelationMemoryPocBuilder:
-    def __init__(self, manifest_path: str | Path, dependency_priors: list[dict[str, Any]] | None = None):
+    def __init__(
+        self, manifest_path: str | Path, dependency_priors: list[dict[str, Any]] | None = None
+    ):
         self.manifest_path = Path(manifest_path)
         self.project_root = _project_root()
         self.dependency_priors = list(dependency_priors or [])
@@ -589,7 +599,9 @@ class RelationMemoryPocBuilder:
             "inquiry_questions": inquiry_questions,
         }
 
-    def _build_metric_time_series(self, fact_contexts: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    def _build_metric_time_series(
+        self, fact_contexts: list[dict[str, Any]]
+    ) -> dict[str, dict[str, Any]]:
         metric_series: dict[str, dict[str, Any]] = {}
         for context in fact_contexts:
             if "month" not in context.get("dimensions", []):
@@ -603,7 +615,9 @@ class RelationMemoryPocBuilder:
                     numeric_value = _safe_float(row.get(metric_code))
                     if numeric_value is None:
                         continue
-                    monthly_values.setdefault(metric_code, {}).setdefault(month, []).append(numeric_value)
+                    monthly_values.setdefault(metric_code, {}).setdefault(month, []).append(
+                        numeric_value
+                    )
             for metric_code, month_map in monthly_values.items():
                 aggregation = _aggregation_mode_for_metric(metric_code)
                 points = [
@@ -634,8 +648,12 @@ class RelationMemoryPocBuilder:
         inbound_counts: dict[str, int] = {}
         outbound_counts: dict[str, int] = {}
         for dependency in dependency_records.values():
-            inbound_counts[dependency["target_metric_code"]] = inbound_counts.get(dependency["target_metric_code"], 0) + 1
-            outbound_counts[dependency["source_metric_code"]] = outbound_counts.get(dependency["source_metric_code"], 0) + 1
+            inbound_counts[dependency["target_metric_code"]] = (
+                inbound_counts.get(dependency["target_metric_code"], 0) + 1
+            )
+            outbound_counts[dependency["source_metric_code"]] = (
+                outbound_counts.get(dependency["source_metric_code"], 0) + 1
+            )
         for metric_code, series in metric_series.items():
             if self._is_context_metric(metric_code, metric_records):
                 continue
@@ -661,7 +679,11 @@ class RelationMemoryPocBuilder:
                     "metric_code": metric_code,
                     "dataset_key": series["dataset_key"],
                     "kind": "level_shift",
-                    "reference_mode": "up" if direction_sign > 0 else "down" if direction_sign < 0 else "flat",
+                    "reference_mode": "up"
+                    if direction_sign > 0
+                    else "down"
+                    if direction_sign < 0
+                    else "flat",
                     "direction_sign": direction_sign,
                     "aggregation": series["aggregation"],
                     "current_period": current_point["month"],
@@ -678,7 +700,9 @@ class RelationMemoryPocBuilder:
                     "recent_points": points[-3:],
                 }
             )
-        total_abs_delta = sum(abs(float(item.get("delta_abs") or 0.0)) for item in observations) or 1.0
+        total_abs_delta = (
+            sum(abs(float(item.get("delta_abs") or 0.0)) for item in observations) or 1.0
+        )
         for observation in observations:
             semantic_type = str(observation.get("semantic_type") or "unknown")
             semantic_boost = {
@@ -695,7 +719,9 @@ class RelationMemoryPocBuilder:
                     + int(observation.get("outbound_dependency_count") or 0)
                 ),
             )
-            materiality_score = min(1.0, abs(float(observation.get("delta_abs") or 0.0)) / total_abs_delta * 10)
+            materiality_score = min(
+                1.0, abs(float(observation.get("delta_abs") or 0.0)) / total_abs_delta * 10
+            )
             near_zero_penalty = (
                 0.75
                 if abs(float(observation.get("previous_value") or 0.0)) < 1e-6
@@ -703,7 +729,14 @@ class RelationMemoryPocBuilder:
                 else 0.0
             )
             observation["score"] = _round_number(
-                max(0.0, float(observation.get("raw_score") or 0.0) + materiality_score + semantic_boost + graph_boost - near_zero_penalty),
+                max(
+                    0.0,
+                    float(observation.get("raw_score") or 0.0)
+                    + materiality_score
+                    + semantic_boost
+                    + graph_boost
+                    - near_zero_penalty,
+                ),
                 4,
             )
         observations.sort(key=lambda item: (-float(item["score"]), item["metric_code"]))
@@ -725,9 +758,7 @@ class RelationMemoryPocBuilder:
             forward_edges.setdefault(dependency["source_metric_code"], []).append(dependency)
 
         active_lag_metrics = {
-            record["metric_code"]
-            for record in lag_records.values()
-            if record.get("is_active")
+            record["metric_code"] for record in lag_records.values() if record.get("is_active")
         }
 
         hypotheses: list[dict[str, Any]] = []
@@ -747,24 +778,40 @@ class RelationMemoryPocBuilder:
                 source_series = metric_series.get(source_metric)
                 if not source_series:
                     continue
-                source_points = {item["month"]: float(item["value"]) for item in source_series["points"]}
+                source_points = {
+                    item["month"]: float(item["value"]) for item in source_series["points"]
+                }
                 current_source_value = source_points.get(current_period)
                 previous_source_value = source_points.get(previous_period)
-                older_source_value = source_points.get(two_periods_back) if two_periods_back else None
+                older_source_value = (
+                    source_points.get(two_periods_back) if two_periods_back else None
+                )
 
                 current_source_sign = 0
                 lagged_source_sign = 0
                 if current_source_value is not None and previous_source_value is not None:
                     current_source_delta = current_source_value - previous_source_value
-                    current_source_sign = 1 if current_source_delta > 0 else -1 if current_source_delta < 0 else 0
+                    current_source_sign = (
+                        1 if current_source_delta > 0 else -1 if current_source_delta < 0 else 0
+                    )
                 if previous_source_value is not None and older_source_value is not None:
                     lagged_source_delta = previous_source_value - older_source_value
-                    lagged_source_sign = 1 if lagged_source_delta > 0 else -1 if lagged_source_delta < 0 else 0
+                    lagged_source_sign = (
+                        1 if lagged_source_delta > 0 else -1 if lagged_source_delta < 0 else 0
+                    )
 
                 expected_source_sign = target_direction_sign * int(path["path_sign"])
-                current_support = current_source_sign == expected_source_sign and current_source_sign != 0
-                lag_support = lagged_source_sign == expected_source_sign and lagged_source_sign != 0 and not current_support
-                lag_is_modeled = source_metric in active_lag_metrics or target_metric in active_lag_metrics
+                current_support = (
+                    current_source_sign == expected_source_sign and current_source_sign != 0
+                )
+                lag_support = (
+                    lagged_source_sign == expected_source_sign
+                    and lagged_source_sign != 0
+                    and not current_support
+                )
+                lag_is_modeled = (
+                    source_metric in active_lag_metrics or target_metric in active_lag_metrics
+                )
 
                 raw_score = float(path["total_strength"]) / max(int(path["hops"]), 1)
                 if current_support:
@@ -835,7 +882,9 @@ class RelationMemoryPocBuilder:
                 impact_series = metric_series.get(impact_metric)
                 if not impact_series:
                     continue
-                impact_points = {item["month"]: float(item["value"]) for item in impact_series["points"]}
+                impact_points = {
+                    item["month"]: float(item["value"]) for item in impact_series["points"]
+                }
                 current_impact_value = impact_points.get(current_period)
                 previous_impact_value = impact_points.get(previous_period)
                 if current_impact_value is None or previous_impact_value is None:
@@ -857,7 +906,9 @@ class RelationMemoryPocBuilder:
                 observed_label = self._metric_label(target_metric, metric_records)
                 impact_label = self._metric_label(impact_metric, metric_records)
                 path_text = self._path_to_text(path["metric_codes"], metric_records)
-                mechanism_type = "downstream_impact" if current_support else "possible_downstream_impact"
+                mechanism_type = (
+                    "downstream_impact" if current_support else "possible_downstream_impact"
+                )
                 if current_support:
                     explanation = (
                         f"Изменение «{observed_label}» в {current_period} совпадает по знаку с downstream-метрикой "
@@ -887,7 +938,11 @@ class RelationMemoryPocBuilder:
                 )
 
             ranked_candidates.sort(
-                key=lambda item: (-float(item["confidence"]), item["hops"], str(item.get("source_metric_code") or "")),
+                key=lambda item: (
+                    -float(item["confidence"]),
+                    item["hops"],
+                    str(item.get("source_metric_code") or ""),
+                ),
             )
             selected = ranked_candidates[:3]
             if not selected or float(selected[0]["confidence"]) < 0.25:
@@ -930,7 +985,9 @@ class RelationMemoryPocBuilder:
         *,
         max_hops: int = 3,
     ) -> list[dict[str, Any]]:
-        queue: list[tuple[str, list[str], list[str], float, int]] = [(target_metric, [target_metric], [], 0.0, 1)]
+        queue: list[tuple[str, list[str], list[str], float, int]] = [
+            (target_metric, [target_metric], [], 0.0, 1)
+        ]
         paths: list[dict[str, Any]] = []
         while queue:
             current_metric, metric_codes, edge_types, total_strength, path_sign = queue.pop(0)
@@ -943,7 +1000,9 @@ class RelationMemoryPocBuilder:
                 next_metric_codes = [source_metric, *metric_codes]
                 next_edge_types = [dependency["edge_type"], *edge_types]
                 next_total_strength = total_strength + float(dependency.get("strength") or 0.0)
-                next_path_sign = path_sign * _edge_sign(str(dependency.get("edge_type") or "driver"))
+                next_path_sign = path_sign * _edge_sign(
+                    str(dependency.get("edge_type") or "driver")
+                )
                 paths.append(
                     {
                         "metric_codes": next_metric_codes,
@@ -955,9 +1014,17 @@ class RelationMemoryPocBuilder:
                 )
                 if len(next_metric_codes) - 1 < max_hops:
                     queue.append(
-                        (source_metric, next_metric_codes, next_edge_types, next_total_strength, next_path_sign)
+                        (
+                            source_metric,
+                            next_metric_codes,
+                            next_edge_types,
+                            next_total_strength,
+                            next_path_sign,
+                        )
                     )
-        paths.sort(key=lambda item: (item["hops"], -float(item["total_strength"]), item["metric_codes"][0]))
+        paths.sort(
+            key=lambda item: (item["hops"], -float(item["total_strength"]), item["metric_codes"][0])
+        )
         return paths[:20]
 
     def _find_downstream_paths(
@@ -967,7 +1034,9 @@ class RelationMemoryPocBuilder:
         *,
         max_hops: int = 3,
     ) -> list[dict[str, Any]]:
-        queue: list[tuple[str, list[str], list[str], float, int]] = [(source_metric, [source_metric], [], 0.0, 1)]
+        queue: list[tuple[str, list[str], list[str], float, int]] = [
+            (source_metric, [source_metric], [], 0.0, 1)
+        ]
         paths: list[dict[str, Any]] = []
         while queue:
             current_metric, metric_codes, edge_types, total_strength, path_sign = queue.pop(0)
@@ -980,7 +1049,9 @@ class RelationMemoryPocBuilder:
                 next_metric_codes = [*metric_codes, next_metric]
                 next_edge_types = [*edge_types, dependency["edge_type"]]
                 next_total_strength = total_strength + float(dependency.get("strength") or 0.0)
-                next_path_sign = path_sign * _edge_sign(str(dependency.get("edge_type") or "driver"))
+                next_path_sign = path_sign * _edge_sign(
+                    str(dependency.get("edge_type") or "driver")
+                )
                 paths.append(
                     {
                         "metric_codes": next_metric_codes,
@@ -992,9 +1063,21 @@ class RelationMemoryPocBuilder:
                 )
                 if len(next_metric_codes) - 1 < max_hops:
                     queue.append(
-                        (next_metric, next_metric_codes, next_edge_types, next_total_strength, next_path_sign)
+                        (
+                            next_metric,
+                            next_metric_codes,
+                            next_edge_types,
+                            next_total_strength,
+                            next_path_sign,
+                        )
                     )
-        paths.sort(key=lambda item: (item["hops"], -float(item["total_strength"]), item["metric_codes"][-1]))
+        paths.sort(
+            key=lambda item: (
+                item["hops"],
+                -float(item["total_strength"]),
+                item["metric_codes"][-1],
+            )
+        )
         return paths[:20]
 
     def _build_inquiry_questions(
@@ -1006,7 +1089,9 @@ class RelationMemoryPocBuilder:
     ) -> list[dict[str, Any]]:
         hypotheses_by_observation: dict[str, list[dict[str, Any]]] = {}
         for hypothesis in hypotheses:
-            hypotheses_by_observation.setdefault(hypothesis["observation_id"], []).append(hypothesis)
+            hypotheses_by_observation.setdefault(hypothesis["observation_id"], []).append(
+                hypothesis
+            )
 
         inquiry_questions: list[dict[str, Any]] = []
         for observation in observations[:10]:
@@ -1017,7 +1102,9 @@ class RelationMemoryPocBuilder:
             valid_ranked = [
                 hypothesis
                 for hypothesis in ranked
-                if self._is_valid_inquiry_hypothesis(hypothesis, observation["metric_code"], metric_records)
+                if self._is_valid_inquiry_hypothesis(
+                    hypothesis, observation["metric_code"], metric_records
+                )
             ]
             if not valid_ranked:
                 inquiry_questions.append(self._boundary_probe_question(observation, target_label))
@@ -1028,19 +1115,19 @@ class RelationMemoryPocBuilder:
                 (
                     hypothesis
                     for hypothesis in valid_ranked[1:]
-                    if str(hypothesis.get("source_metric_code") or "") != str(top.get("source_metric_code") or "")
+                    if str(hypothesis.get("source_metric_code") or "")
+                    != str(top.get("source_metric_code") or "")
                 ),
                 None,
             )
             hypothesis_ids = [top["id"]]
 
-            if (
-                runner_up
-                and float(runner_up["confidence"]) >= float(top["confidence"]) * 0.75
-            ):
+            if runner_up and float(runner_up["confidence"]) >= float(top["confidence"]) * 0.75:
                 question_type = "disambiguate_drivers"
                 top_source = self._metric_label(str(top["source_metric_code"]), metric_records)
-                runner_source = self._metric_label(str(runner_up["source_metric_code"]), metric_records)
+                runner_source = self._metric_label(
+                    str(runner_up["source_metric_code"]), metric_records
+                )
                 top_path = self._path_to_text(top["metric_codes"], metric_records)
                 runner_path = self._path_to_text(runner_up["metric_codes"], metric_records)
                 hypothesis_ids.append(runner_up["id"])
@@ -1094,14 +1181,20 @@ class RelationMemoryPocBuilder:
             return _titleize(metric_code)
         return str(record.get("label") or record.get("display_name") or metric_code)
 
-    def _path_to_text(self, metric_codes: list[str], metric_records: dict[str, dict[str, Any]]) -> str:
+    def _path_to_text(
+        self, metric_codes: list[str], metric_records: dict[str, dict[str, Any]]
+    ) -> str:
         return " -> ".join(self._metric_label(code, metric_records) for code in metric_codes)
 
-    def _is_context_metric(self, metric_code: str, metric_records: dict[str, dict[str, Any]]) -> bool:
+    def _is_context_metric(
+        self, metric_code: str, metric_records: dict[str, dict[str, Any]]
+    ) -> bool:
         preferred_dataset = str(metric_records.get(metric_code, {}).get("preferred_dataset") or "")
         return "context" in preferred_dataset
 
-    def _metric_semantic_type(self, metric_code: str, metric_records: dict[str, dict[str, Any]]) -> str:
+    def _metric_semantic_type(
+        self, metric_code: str, metric_records: dict[str, dict[str, Any]]
+    ) -> str:
         return str(metric_records.get(metric_code, {}).get("semantic_type") or "unknown")
 
     def _is_valid_inquiry_hypothesis(
@@ -1119,15 +1212,21 @@ class RelationMemoryPocBuilder:
             return False
         return self._has_distinct_upstream_driver(hypothesis, target_metric_code)
 
-    def _has_distinct_upstream_driver(self, hypothesis: dict[str, Any], target_metric_code: str) -> bool:
-        metric_codes = [str(code or "") for code in hypothesis.get("metric_codes") or [] if str(code or "")]
+    def _has_distinct_upstream_driver(
+        self, hypothesis: dict[str, Any], target_metric_code: str
+    ) -> bool:
+        metric_codes = [
+            str(code or "") for code in hypothesis.get("metric_codes") or [] if str(code or "")
+        ]
         if len(metric_codes) < 2:
             return False
         if metric_codes[-1] != target_metric_code:
             return False
         return any(code != target_metric_code for code in metric_codes[:-1])
 
-    def _boundary_probe_question(self, observation: dict[str, Any], target_label: str) -> dict[str, Any]:
+    def _boundary_probe_question(
+        self, observation: dict[str, Any], target_label: str
+    ) -> dict[str, Any]:
         return {
             "id": f"{observation['id']}:question",
             "observation_id": observation["id"],
@@ -1162,7 +1261,9 @@ class RelationMemoryPocBuilder:
             record["name"] = display_name
 
         for dimension_key, record in dimension_records.items():
-            display_name = DIMENSION_DISPLAY_LABELS.get(dimension_key, record.get("label") or _titleize(dimension_key))
+            display_name = DIMENSION_DISPLAY_LABELS.get(
+                dimension_key, record.get("label") or _titleize(dimension_key)
+            )
             record["label"] = display_name
             record["display_name"] = display_name
             record["name"] = display_name
@@ -1178,15 +1279,21 @@ class RelationMemoryPocBuilder:
             record["name"] = display_name
 
         for record in formula_records.values():
-            metric_label = metric_records.get(record["metric_code"], {}).get("label", _titleize(record["metric_code"]))
-            dataset_label = dataset_records.get(record["dataset_key"], {}).get("label", record["dataset_key"])
+            metric_label = metric_records.get(record["metric_code"], {}).get(
+                "label", _titleize(record["metric_code"])
+            )
+            dataset_label = dataset_records.get(record["dataset_key"], {}).get(
+                "label", record["dataset_key"]
+            )
             display_name = f"{metric_label} из {dataset_label}"
             record["label"] = display_name
             record["display_name"] = display_name
             record["name"] = display_name
 
         for record in lag_records.values():
-            metric_label = metric_records.get(record["metric_code"], {}).get("label", _titleize(record["metric_code"]))
+            metric_label = metric_records.get(record["metric_code"], {}).get(
+                "label", _titleize(record["metric_code"])
+            )
             display_name = f"Лаг для {metric_label}"
             record["label"] = display_name
             record["display_name"] = display_name
@@ -1236,13 +1343,23 @@ class RelationMemoryPocBuilder:
 
         return canonical_headers, canonical_rows
 
-    def _validate_contract(self, *, path: Path, headers: list[str], contract: dict[str, Any]) -> None:
-        missing = [column for column in contract.get("required_columns", []) if column not in headers]
+    def _validate_contract(
+        self, *, path: Path, headers: list[str], contract: dict[str, Any]
+    ) -> None:
+        missing = [
+            column for column in contract.get("required_columns", []) if column not in headers
+        ]
         if missing:
             raise ValueError(f"{path.name} missing required columns: {', '.join(missing)}")
         expected_sheet = contract.get("sheet_name") or contract.get("sheet") or path.stem
         workbook = load_workbook(path, read_only=True)
-        actual_sheet = str(expected_sheet) if expected_sheet in workbook.sheetnames else workbook.sheetnames[0] if workbook.sheetnames else None
+        actual_sheet = (
+            str(expected_sheet)
+            if expected_sheet in workbook.sheetnames
+            else workbook.sheetnames[0]
+            if workbook.sheetnames
+            else None
+        )
         workbook.close()
         if not actual_sheet:
             raise ValueError(f"{path.name} must contain at least one sheet")
@@ -1366,14 +1483,19 @@ class RelationMemoryPocBuilder:
                         "label": str(row.get("label") or record["label"]).strip(),
                         "description": str(row.get("description") or record["description"]).strip(),
                         "aliases": list(dict.fromkeys(alias for alias in aliases if alias)),
-                        "sensitivity_level": _canonical_sensitivity(row.get("sensitivity_level") or record["sensitivity_level"]),
+                        "sensitivity_level": _canonical_sensitivity(
+                            row.get("sensitivity_level") or record["sensitivity_level"]
+                        ),
                         "allow_roles": [
                             _canonical_role(role)
                             for role in str(row.get("allow_roles") or "").split(",")
                             if role.strip()
-                        ] or record["allow_roles"],
+                        ]
+                        or record["allow_roles"],
                         "preferred_dataset": preferred_dataset or record["preferred_dataset"],
-                        "semantic_type": str(row.get("semantic_type") or record.get("semantic_type") or "unknown").strip(),
+                        "semantic_type": str(
+                            row.get("semantic_type") or record.get("semantic_type") or "unknown"
+                        ).strip(),
                         "source": "metadata",
                     }
                 )
@@ -1417,7 +1539,10 @@ class RelationMemoryPocBuilder:
                 verdict_records[code] = {
                     "code": code,
                     "label": str(row.get("label") or _titleize(code)),
-                    "metric_codes": [_canonical_metric_code(item) for item in _split_multi(row.get("metric_codes"))],
+                    "metric_codes": [
+                        _canonical_metric_code(item)
+                        for item in _split_multi(row.get("metric_codes"))
+                    ],
                     "verdict_text": str(row.get("verdict_text") or "").strip(),
                     "priority": int(row.get("priority") or 100),
                     "is_active": _parse_bool(row.get("is_active")),
@@ -1482,7 +1607,9 @@ class RelationMemoryPocBuilder:
                 "source_metric_code": source,
                 "target_metric_code": target,
                 "edge_type": _canonical_edge_type(prior.get("edge_type") or "driver"),
-                "reason": str(prior.get("note") or prior.get("reason") or "Confirmed user memory prior.").strip(),
+                "reason": str(
+                    prior.get("note") or prior.get("reason") or "Confirmed user memory prior."
+                ).strip(),
                 "strength": float(prior.get("strength") or 1.0),
                 "source": str(prior.get("source") or "memory_prior"),
             }
@@ -1505,7 +1632,9 @@ class RelationMemoryPocBuilder:
         self._infer_revenue_dependencies(merged_rows, available_metrics, dependency_records)
         self._infer_statistical_dependencies(merged_rows, available_metrics, dependency_records)
 
-    def _build_merged_metric_rows(self, fact_contexts: list[dict[str, Any]]) -> list[dict[str, float]]:
+    def _build_merged_metric_rows(
+        self, fact_contexts: list[dict[str, Any]]
+    ) -> list[dict[str, float]]:
         all_dimensions = sorted(
             {
                 dimension_key
@@ -1516,7 +1645,10 @@ class RelationMemoryPocBuilder:
         merged_rows: dict[tuple[tuple[str, str], ...], dict[str, float]] = {}
         for context in fact_contexts:
             for row in context.get("rows", []):
-                row_key = tuple((dimension_key, str(row.get(dimension_key) or "")) for dimension_key in all_dimensions)
+                row_key = tuple(
+                    (dimension_key, str(row.get(dimension_key) or ""))
+                    for dimension_key in all_dimensions
+                )
                 record = merged_rows.setdefault(row_key, {})
                 for metric_code in context.get("metrics", []):
                     numeric_value = _safe_float(row.get(metric_code))
@@ -1532,7 +1664,9 @@ class RelationMemoryPocBuilder:
     ) -> None:
         targets = [metric_code for metric_code in available_metrics if "total" in metric_code]
         for target_metric in targets:
-            candidate_sources = sorted(metric_code for metric_code in available_metrics if metric_code != target_metric)
+            candidate_sources = sorted(
+                metric_code for metric_code in available_metrics if metric_code != target_metric
+            )
             for left_metric, right_metric in combinations(candidate_sources, 2):
                 triples = [
                     (row[left_metric], row[right_metric], row[target_metric])
@@ -1577,7 +1711,9 @@ class RelationMemoryPocBuilder:
             if any(token in metric_code for token in ("margin", "profit"))
         ]
         for target_metric in targets:
-            candidate_sources = sorted(metric_code for metric_code in available_metrics if metric_code != target_metric)
+            candidate_sources = sorted(
+                metric_code for metric_code in available_metrics if metric_code != target_metric
+            )
             for positive_metric, negative_metric in combinations(candidate_sources, 2):
                 ordered_pairs = [
                     (positive_metric, negative_metric),
@@ -1587,7 +1723,9 @@ class RelationMemoryPocBuilder:
                     triples = [
                         (row[positive_candidate], row[negative_candidate], row[target_metric])
                         for row in merged_rows
-                        if positive_candidate in row and negative_candidate in row and target_metric in row
+                        if positive_candidate in row
+                        and negative_candidate in row
+                        and target_metric in row
                     ]
                     if len(triples) < 24:
                         continue
@@ -1738,10 +1876,14 @@ class RelationMemoryPocBuilder:
                 for row in merged_rows
                 if all(metric in row for metric in ("orders", "avg_price", "revenue"))
             ]
-            correlation = _pearson_correlation(
-                [left for left, _ in pairs],
-                [right for _, right in pairs],
-            ) if len(pairs) >= 24 else None
+            correlation = (
+                _pearson_correlation(
+                    [left for left, _ in pairs],
+                    [right for _, right in pairs],
+                )
+                if len(pairs) >= 24
+                else None
+            )
             if correlation is not None and correlation >= 0.6:
                 set_revenue_dependency(
                     "orders",
@@ -1758,10 +1900,14 @@ class RelationMemoryPocBuilder:
                 for row in merged_rows
                 if all(metric in row for metric in ("orders", "avg_price", "revenue"))
             ]
-            correlation = _pearson_correlation(
-                [left for left, _ in pairs],
-                [right for _, right in pairs],
-            ) if len(pairs) >= 24 else None
+            correlation = (
+                _pearson_correlation(
+                    [left for left, _ in pairs],
+                    [right for _, right in pairs],
+                )
+                if len(pairs) >= 24
+                else None
+            )
             if correlation is not None and correlation >= 0.6:
                 set_revenue_dependency(
                     "avg_price",
@@ -1780,12 +1926,18 @@ class RelationMemoryPocBuilder:
                     row["revenue"] / max(row["orders"] * row["avg_price"], 1e-9),
                 )
                 for row in merged_rows
-                if all(metric in row for metric in ("stockout_rate", "orders", "avg_price", "revenue"))
+                if all(
+                    metric in row for metric in ("stockout_rate", "orders", "avg_price", "revenue")
+                )
             ]
-            correlation = _pearson_correlation(
-                [left for left, _ in pairs],
-                [right for _, right in pairs],
-            ) if len(pairs) >= 24 else None
+            correlation = (
+                _pearson_correlation(
+                    [left for left, _ in pairs],
+                    [right for _, right in pairs],
+                )
+                if len(pairs) >= 24
+                else None
+            )
             if correlation is not None and correlation <= -0.3:
                 set_revenue_dependency(
                     "stockout_rate",
@@ -1804,12 +1956,18 @@ class RelationMemoryPocBuilder:
                     row["revenue"] / max(row["orders"] * row["avg_price"], 1e-9),
                 )
                 for row in merged_rows
-                if all(metric in row for metric in ("return_rate", "orders", "avg_price", "revenue"))
+                if all(
+                    metric in row for metric in ("return_rate", "orders", "avg_price", "revenue")
+                )
             ]
-            correlation = _pearson_correlation(
-                [left for left, _ in pairs],
-                [right for _, right in pairs],
-            ) if len(pairs) >= 24 else None
+            correlation = (
+                _pearson_correlation(
+                    [left for left, _ in pairs],
+                    [right for _, right in pairs],
+                )
+                if len(pairs) >= 24
+                else None
+            )
             if correlation is not None and correlation <= -0.3:
                 set_revenue_dependency(
                     "return_rate",
@@ -1859,7 +2017,9 @@ def write_json_report(path: str | Path, payload: dict[str, Any]) -> Path:
     return output_path
 
 
-def summarize_snapshot(manifest_path: str | Path, snapshot: RelationMemorySnapshot) -> dict[str, Any]:
+def summarize_snapshot(
+    manifest_path: str | Path, snapshot: RelationMemorySnapshot
+) -> dict[str, Any]:
     payload = snapshot.to_dict()
     return {
         "manifest": str(manifest_path),

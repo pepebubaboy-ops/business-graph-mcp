@@ -28,14 +28,19 @@ def evaluate_relation_memory_snapshot(
     metrics = list(getattr(snapshot, "metrics", []))
     inbound = Counter(item.get("target_metric_code") for item in dependencies)
     outbound = Counter(item.get("source_metric_code") for item in dependencies)
-    boundary_gap_count = sum(1 for item in hypotheses if item.get("mechanism_type") == "boundary_gap")
+    boundary_gap_count = sum(
+        1 for item in hypotheses if item.get("mechanism_type") == "boundary_gap"
+    )
     observations_with_graph_path = sum(
-        1 for item in observations if inbound[item.get("metric_code")] > 0 or outbound[item.get("metric_code")] > 0
+        1
+        for item in observations
+        if inbound[item.get("metric_code")] > 0 or outbound[item.get("metric_code")] > 0
     )
     technical_metric_codes = {
         item.get("code")
         for item in metrics
-        if _looks_technical(str(item.get("code") or "")) or _looks_technical(str(item.get("label") or ""))
+        if _looks_technical(str(item.get("code") or ""))
+        or _looks_technical(str(item.get("label") or ""))
     }
     technical_observations = [
         item for item in observations if item.get("metric_code") in technical_metric_codes
@@ -43,11 +48,15 @@ def evaluate_relation_memory_snapshot(
     designed_recall = _designed_driver_recall(hypotheses, designed_driver_pairs or [])
     return {
         "boundary_gap_rate": round(boundary_gap_count / len(hypotheses), 4) if hypotheses else 0.0,
-        "observation_graph_coverage": round(observations_with_graph_path / len(observations), 4) if observations else 0.0,
+        "observation_graph_coverage": round(observations_with_graph_path / len(observations), 4)
+        if observations
+        else 0.0,
         "designed_driver_recall": designed_recall,
         "top_k_relation_precision": None,
         "pending_confirmation_count": pending_confirmation_count,
-        "technical_row_leakage": round(len(technical_observations) / len(observations), 4) if observations else 0.0,
+        "technical_row_leakage": round(len(technical_observations) / len(observations), 4)
+        if observations
+        else 0.0,
         "technical_observation_count": len(technical_observations),
     }
 
@@ -153,7 +162,9 @@ def select_targeted_relation_candidates_for_approval(
     return selected
 
 
-def relation_candidates_to_dependency_priors(relation_candidates: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def relation_candidates_to_dependency_priors(
+    relation_candidates: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
     priors: list[dict[str, Any]] = []
     for candidate in relation_candidates:
         score = _relation_score(candidate)
@@ -164,7 +175,9 @@ def relation_candidates_to_dependency_priors(relation_candidates: list[dict[str,
                 "edge_type": candidate.get("edge_type") or "driver",
                 "strength": score,
                 "source": f"approval_benchmark_{candidate.get('evidence_type') or 'relation'}",
-                "note": candidate.get("evidence") or candidate.get("note") or "Approved relation candidate.",
+                "note": candidate.get("evidence")
+                or candidate.get("note")
+                or "Approved relation candidate.",
             }
         )
     return priors
@@ -190,8 +203,12 @@ def approval_benchmark_summary(
     coverage_diagnostics = _approval_coverage_diagnostics(baseline_snapshot, approved_candidates)
     return {
         "approved_relation_count": len(approved_candidates),
-        "approved_relation_evidence_types": dict(Counter(str(item.get("evidence_type") or "") for item in approved_candidates)),
-        "approved_relation_edge_types": dict(Counter(str(item.get("edge_type") or "") for item in approved_candidates)),
+        "approved_relation_evidence_types": dict(
+            Counter(str(item.get("evidence_type") or "") for item in approved_candidates)
+        ),
+        "approved_relation_edge_types": dict(
+            Counter(str(item.get("edge_type") or "") for item in approved_candidates)
+        ),
         "approval_coverage_diagnostics": coverage_diagnostics,
         "baseline_counts": _snapshot_counts(baseline_snapshot),
         "after_approval_counts": _snapshot_counts(approved_snapshot),
@@ -230,7 +247,9 @@ def approval_benchmark_summary(
     }
 
 
-def _designed_driver_recall(hypotheses: list[dict[str, Any]], pairs: list[tuple[str, str]]) -> dict[str, Any]:
+def _designed_driver_recall(
+    hypotheses: list[dict[str, Any]], pairs: list[tuple[str, str]]
+) -> dict[str, Any]:
     items = []
     for source, target in pairs:
         found = any(_hypothesis_contains_path(item, source, target) for item in hypotheses)
@@ -238,7 +257,9 @@ def _designed_driver_recall(hypotheses: list[dict[str, Any]], pairs: list[tuple[
     return {
         "found": sum(1 for item in items if item["found"]),
         "total": len(items),
-        "ratio": round(sum(1 for item in items if item["found"]) / len(items), 4) if items else None,
+        "ratio": round(sum(1 for item in items if item["found"]) / len(items), 4)
+        if items
+        else None,
         "items": items,
     }
 
@@ -252,7 +273,9 @@ def _hypothesis_contains_path(hypothesis: dict[str, Any], source: str, target: s
 
 def _looks_technical(value: str) -> bool:
     lowered = value.lower()
-    return any(token in lowered for token in ("проверка", "technical_check", "контроль", "расшифровка"))
+    return any(
+        token in lowered for token in ("проверка", "technical_check", "контроль", "расшифровка")
+    )
 
 
 def _relation_score(candidate: dict[str, Any]) -> float:
@@ -269,7 +292,8 @@ def _relation_candidate_is_approvable(candidate: dict[str, Any], evidence_types:
         and str(candidate.get("edge_type") or "driver") in APPROVAL_BENCHMARK_EDGE_TYPES
         and bool(str(candidate.get("source_metric_code") or ""))
         and bool(str(candidate.get("target_metric_code") or ""))
-        and str(candidate.get("source_metric_code") or "") != str(candidate.get("target_metric_code") or "")
+        and str(candidate.get("source_metric_code") or "")
+        != str(candidate.get("target_metric_code") or "")
     )
 
 
@@ -294,22 +318,45 @@ def _observations_ranked_for_targeting(snapshot: Any) -> list[dict[str, Any]]:
     return observations
 
 
-def _targeted_relation_score(candidate: dict[str, Any], observation: dict[str, Any], snapshot: Any) -> float:
+def _targeted_relation_score(
+    candidate: dict[str, Any], observation: dict[str, Any], snapshot: Any
+) -> float:
     relation_score = _relation_score(candidate)
-    evidence_weight = TARGETED_APPROVAL_EVIDENCE_WEIGHTS.get(str(candidate.get("evidence_type") or ""), 0.06)
-    target_boost = 0.25 if candidate.get("target_metric_code") == observation.get("metric_code") else 0.0
+    evidence_weight = TARGETED_APPROVAL_EVIDENCE_WEIGHTS.get(
+        str(candidate.get("evidence_type") or ""), 0.06
+    )
+    target_boost = (
+        0.25 if candidate.get("target_metric_code") == observation.get("metric_code") else 0.0
+    )
     boundary_boost = 0.2 if observation.get("has_boundary_gap") else 0.0
     source_support = _source_signal_support(candidate, observation, snapshot)
     observation_score = min(0.18, float(observation.get("score") or 0.0) / 20)
-    return round(min(1.0, relation_score * 0.52 + evidence_weight + target_boost + boundary_boost + source_support + observation_score), 4)
+    return round(
+        min(
+            1.0,
+            relation_score * 0.52
+            + evidence_weight
+            + target_boost
+            + boundary_boost
+            + source_support
+            + observation_score,
+        ),
+        4,
+    )
 
 
-def _source_signal_support(candidate: dict[str, Any], observation: dict[str, Any], snapshot: Any) -> float:
+def _source_signal_support(
+    candidate: dict[str, Any], observation: dict[str, Any], snapshot: Any
+) -> float:
     source_metric = str(candidate.get("source_metric_code") or "")
     if not source_metric:
         return 0.0
     source_observation = next(
-        (item for item in getattr(snapshot, "observations", []) if item.get("metric_code") == source_metric),
+        (
+            item
+            for item in getattr(snapshot, "observations", [])
+            if item.get("metric_code") == source_metric
+        ),
         None,
     )
     if not source_observation:
@@ -335,7 +382,9 @@ def _snapshot_counts(snapshot: Any) -> dict[str, int]:
     }
 
 
-def _approval_coverage_diagnostics(snapshot: Any, approved_candidates: list[dict[str, Any]]) -> dict[str, Any]:
+def _approval_coverage_diagnostics(
+    snapshot: Any, approved_candidates: list[dict[str, Any]]
+) -> dict[str, Any]:
     boundary_gap_targets = sorted(
         {
             str(item.get("target_metric_code") or "")
@@ -363,7 +412,9 @@ def _approval_coverage_diagnostics(snapshot: Any, approved_candidates: list[dict
 
 
 def _count_delta(after_snapshot: Any, before_snapshot: Any, attribute: str) -> int:
-    return len(getattr(after_snapshot, attribute, [])) - len(getattr(before_snapshot, attribute, []))
+    return len(getattr(after_snapshot, attribute, [])) - len(
+        getattr(before_snapshot, attribute, [])
+    )
 
 
 def _numeric_delta(after: Any, before: Any) -> float | None:
