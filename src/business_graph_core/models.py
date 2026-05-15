@@ -161,6 +161,58 @@ class GraphSummary(BaseModel):
     relation_counts_by_type: dict[str, int] = Field(default_factory=dict)
 
 
+class RelationSearchRequest(BaseModel):
+    workspace_id: str = "default"
+    query: str | None = None
+    from_id: str | None = None
+    to_id: str | None = None
+    relation_types: list[RelationType] = Field(default_factory=list)
+    statuses: list[RelationStatus] = Field(default_factory=list)
+    include_rejected: bool = False
+    limit: int = Field(default=50, ge=1, le=500)
+
+
+class RelationSearchResult(BaseModel):
+    workspace_id: str = "default"
+    relations: list[BusinessRelation] = Field(default_factory=list)
+    nodes: list[BusinessNode] = Field(default_factory=list)
+    count: int = 0
+
+
+class PathSearchRequest(BaseModel):
+    workspace_id: str = "default"
+    from_id: str
+    to_id: str
+    max_depth: int = Field(default=4, ge=1, le=12)
+    statuses: list[RelationStatus] = Field(default_factory=list)
+    include_rejected: bool = False
+
+
+class GraphPathStep(BaseModel):
+    from_node: BusinessNode
+    relation: BusinessRelation
+    to_node: BusinessNode
+
+
+class GraphPath(BaseModel):
+    workspace_id: str = "default"
+    from_id: str
+    to_id: str
+    steps: list[GraphPathStep] = Field(default_factory=list)
+    depth: int = 0
+    evidence_refs: list[EvidenceRef] = Field(default_factory=list)
+    confidence: float = Field(default=0.0, ge=0, le=1)
+
+
+class RelationExplanation(BaseModel):
+    workspace_id: str = "default"
+    relation: BusinessRelation
+    from_node: BusinessNode
+    to_node: BusinessNode
+    evidence: list[EvidenceRef] = Field(default_factory=list)
+    explanation: str
+
+
 class AnalysisResult(BaseModel):
     analysis_id: str = Field(default_factory=lambda: f"analysis:{uuid4().hex}")
     workspace_id: str = "default"

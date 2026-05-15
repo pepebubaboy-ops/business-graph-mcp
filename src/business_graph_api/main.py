@@ -12,9 +12,15 @@ from business_graph_core.models import (
     FileRecord,
     FileStatus,
     FileUploadResult,
+    GraphPath,
     GraphSummary,
+    PathSearchRequest,
+    RelationExplanation,
+    RelationSearchRequest,
+    RelationSearchResult,
 )
 from business_graph_core.services.analyzer import AnalyzerService
+from business_graph_core.services.graph_query import GraphQueryService
 from business_graph_core.settings import settings
 
 app = FastAPI(title="Business Graph MCP API", version="0.1.0")
@@ -92,6 +98,37 @@ def analyze_local_files(
     return _service.analyze_local_files(request)
 
 
+@app.post("/api/v1/relations/search", response_model=RelationSearchResult)
+def search_relations(
+    request: RelationSearchRequest,
+    _: None = Depends(require_api_key),
+) -> RelationSearchResult:
+    return _graph_query_service().find_relations(request)
+
+
+@app.get("/api/v1/relations/{relation_id}/explain", response_model=RelationExplanation)
+def explain_relation(
+    relation_id: str,
+    workspace_id: str = "default",
+    _: None = Depends(require_api_key),
+) -> RelationExplanation:
+    try:
+        return _graph_query_service().explain_relation(workspace_id, relation_id)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post("/api/v1/paths/explain", response_model=GraphPath)
+def explain_path(
+    request: PathSearchRequest,
+    _: None = Depends(require_api_key),
+) -> GraphPath:
+    path = _graph_query_service().explain_path(request)
+    if path is None:
+        raise HTTPException(status_code=404, detail="No graph path found.")
+    return path
+
+
 @app.get("/api/v1/graph/summary", response_model=GraphSummary)
 def graph_summary(
     workspace_id: str = "default",
@@ -106,3 +143,7 @@ def relations(
     _: None = Depends(require_api_key),
 ):
     return _service.graph_repo.list_relations(workspace_id=workspace_id)
+
+
+def _graph_query_service() -> GraphQueryService:
+    return GraphQueryService(_service.graph_repo)

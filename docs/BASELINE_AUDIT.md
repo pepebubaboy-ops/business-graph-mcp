@@ -45,22 +45,31 @@ Active scaffold modules:
   - evidence references from sheet, row, file, and reason
 - `business_graph_core.graph.memory_repo`
   - in-memory node/relation upsert and graph summary support
+  - workspace-scoped node and relation lookup
+- `business_graph_core.graph.repository`
+  - graph repository protocol shared by services
 - `business_graph_core.services.analyzer`
   - registered-file analyzer path using `workspace_id + file_ids`
   - local-file analyzer helper for dev/backward compatibility
+- `business_graph_core.services.graph_query`
+  - relation search by node, relation, type, and status
+  - direct relation explanation and deterministic path explanation
 - `business_graph_api.main`
   - `GET /health`
   - `POST /api/v1/files`
   - `GET /api/v1/files`
   - `POST /api/v1/analyses/files`
   - `POST /api/v1/analyses/local-files`
+  - `POST /api/v1/relations/search`
+  - `GET /api/v1/relations/{relation_id}/explain`
+  - `POST /api/v1/paths/explain`
   - `GET /api/v1/graph/summary`
   - `GET /api/v1/relations`
   - API key guard for non-health endpoints
 - `business_graph_mcp.server`
   - local FastMCP stdio server
   - health, registered-file analysis, local-file analysis, graph summary,
-    and relation listing tools
+    relation search, relation explanation, and path explanation tools
 
 Preserved legacy modules:
 
