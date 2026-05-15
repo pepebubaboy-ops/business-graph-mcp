@@ -5,26 +5,30 @@ import unicodedata
 from pathlib import Path
 
 MAX_LINE_LENGTH = 220
-EXPLICIT_FORBIDDEN_CHARACTERS = {
-    "\ufeff": "BOM U+FEFF",
-    "\u2028": "U+2028",
-    "\u2029": "U+2029",
-    "\u202a": "U+202A",
-    "\u202b": "U+202B",
-    "\u202c": "U+202C",
-    "\u202d": "U+202D",
-    "\u202e": "U+202E",
-    "\u2066": "U+2066",
-    "\u2067": "U+2067",
-    "\u2068": "U+2068",
-    "\u2069": "U+2069",
-    "\u200b": "U+200B",
-    "\u200c": "U+200C",
-    "\u200d": "U+200D",
-    "\u2060": "U+2060",
-    "\u00ad": "U+00AD",
-    "\u00a0": "U+00A0",
-    "\u202f": "U+202F",
+ALLOWED_CONTROL_CODEPOINTS = {
+    0x0009,
+    0x000A,
+}
+FORBIDDEN_CODEPOINTS = {
+    0xFEFF: "BOM U+FEFF",
+    0x2028: "LINE SEPARATOR U+2028",
+    0x2029: "PARAGRAPH SEPARATOR U+2029",
+    0x202A: "BIDI U+202A",
+    0x202B: "BIDI U+202B",
+    0x202C: "BIDI U+202C",
+    0x202D: "BIDI U+202D",
+    0x202E: "BIDI U+202E",
+    0x2066: "BIDI U+2066",
+    0x2067: "BIDI U+2067",
+    0x2068: "BIDI U+2068",
+    0x2069: "BIDI U+2069",
+    0x200B: "ZERO WIDTH SPACE U+200B",
+    0x200C: "ZERO WIDTH NON-JOINER U+200C",
+    0x200D: "ZERO WIDTH JOINER U+200D",
+    0x2060: "WORD JOINER U+2060",
+    0x00AD: "SOFT HYPHEN U+00AD",
+    0x00A0: "NO-BREAK SPACE U+00A0",
+    0x202F: "NARROW NO-BREAK SPACE U+202F",
 }
 EXCLUDED_PARTS = {
     ".git",
@@ -37,6 +41,14 @@ EXCLUDED_SUFFIXES = (
     ".zip",
     ".tar.gz",
 )
+
+
+def dangerous_escape_literals() -> list[str]:
+    literals: list[str] = []
+    for codepoint in sorted(FORBIDDEN_CODEPOINTS):
+        literals.append("\\" + f"u{codepoint:04x}")
+        literals.append("\\" + f"U{codepoint:08x}")
+    return literals
 
 
 def tracked_files() -> list[Path]:
@@ -80,16 +92,38 @@ def inspect_text_file(path: Path) -> list[str]:
         findings.append(f"{path}: contains raw carriage return bytes")
 
     for offset, character in enumerate(text):
-        if character in EXPLICIT_FORBIDDEN_CHARACTERS:
+        codepoint = ord(character)
+        category = unicodedata.category(character)
+
+        if codepoint == 0x000D:
+            continue
+
+        if codepoint in FORBIDDEN_CODEPOINTS:
             findings.append(
                 f"{path}: contains hidden/control character "
-                f"{EXPLICIT_FORBIDDEN_CHARACTERS[character]} at offset {offset}"
+                f"{FORBIDDEN_CODEPOINTS[codepoint]} at offset {offset}"
             )
-        elif unicodedata.category(character) == "Cf":
+        elif category == "Cf":
             findings.append(
                 f"{path}: contains Unicode format character "
-                f"U+{ord(character):04X} "
+                f"U+{codepoint:04X} "
                 f"{unicodedata.name(character, 'UNKNOWN')} at offset {offset}"
+            )
+        elif category == "Cc" and codepoint not in ALLOWED_CONTROL_CODEPOINTS:
+            findings.append(
+                f"{path}: contains unexpected control character "
+                f"U+{codepoint:04X} "
+                f"{unicodedata.name(character, 'UNKNOWN')} at offset {offset}"
+            )
+
+    lowered_text = text.lower()
+    for literal in dangerous_escape_literals():
+        literal_lower = literal.lower()
+        offset = lowered_text.find(literal_lower)
+        if offset >= 0:
+            findings.append(
+                f"{path}: contains dangerous Unicode escape literal "
+                f"{literal} at offset {offset}"
             )
 
     for line_number, line in enumerate(text.splitlines(), start=1):
@@ -123,7 +157,8 @@ def main() -> int:
 
     print(
         "Text hygiene check passed: no active tracked text files contain "
-        "CR bytes, hidden/control formatting characters, or lines over "
+        "CR bytes, hidden/control formatting characters, dangerous Unicode "
+        "escape literals, unexpected control characters, or lines over "
         f"{MAX_LINE_LENGTH} characters."
     )
     return 0

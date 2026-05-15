@@ -88,6 +88,7 @@ Verification was run in a local `.venv` created from Python 3.12.12.
 - `python -m pytest`: passed, 15 tests collected.
 - `python -m ruff check .`: passed.
 - `python scripts/check_long_lines.py`: passed.
+- `python scripts/check_changed_files_text_hygiene.py`: passed.
 
 Ruff is configured to lint the active scaffold and tests while excluding
 `legacy/relation-memory-cowork/`. The legacy package was formatted for
@@ -97,7 +98,9 @@ migrated into the active architecture yet.
 The text hygiene check scans tracked active repository files and flags lines
 over 220 characters, raw carriage return bytes, byte order marks, Unicode line
 separators, Unicode bidi controls, zero-width characters, non-breaking spaces,
-soft hyphens, and any Unicode format characters. It excludes `.git/`, `.venv/`,
+soft hyphens, dangerous Unicode escape literals, unexpected control characters,
+and any Unicode format characters. The changed-files hygiene check applies the
+same rules to the active PR diff. These checks exclude `.git/`, `.venv/`,
 `legacy/relation-memory-cowork/`, binary files, and packaged binary artifacts.
 
 ## Immediate Risks Found

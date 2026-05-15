@@ -7,6 +7,10 @@ def scan_single(path: Path) -> list[str]:
     return check_long_lines.scan_paths([path])
 
 
+def unicode_escape_literal(codepoint: int) -> str:
+    return "\\" + f"u{codepoint:04x}"
+
+
 def test_lf_text_file_passes(tmp_path):
     path = tmp_path / "normal.md"
     path.write_text("# Title\n\nReadable text.\n", encoding="utf-8", newline="\n")
@@ -131,3 +135,32 @@ def test_arbitrary_format_character_fails(tmp_path):
 
     assert len(findings) == 1
     assert "U+061C" in findings[0]
+
+
+def test_unexpected_control_character_fails(tmp_path):
+    path = tmp_path / "control-character.md"
+    path.write_text(f"a{chr(0x0007)}b\n", encoding="utf-8", newline="\n")
+
+    findings = scan_single(path)
+
+    assert len(findings) == 1
+    assert "unexpected control character U+0007" in findings[0]
+
+
+def test_dangerous_unicode_escape_literal_fails(tmp_path):
+    path = tmp_path / "escape-literal.py"
+    literal = unicode_escape_literal(0x202E)
+    path.write_text(f"TEXT = 'safe {literal} text'\n", encoding="utf-8", newline="\n")
+
+    findings = scan_single(path)
+
+    assert len(findings) == 1
+    assert "dangerous Unicode escape literal" in findings[0]
+
+
+def test_hygiene_script_source_has_no_dangerous_unicode_literals():
+    source = Path("scripts/check_long_lines.py").read_text(encoding="utf-8").lower()
+
+    for codepoint in check_long_lines.FORBIDDEN_CODEPOINTS:
+        assert unicode_escape_literal(codepoint) not in source
+        assert ("\\" + f"u{codepoint:08x}") not in source

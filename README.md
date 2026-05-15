@@ -104,6 +104,7 @@ make check
 python -m pytest
 python -m ruff check .
 python scripts/check_long_lines.py
+python scripts/check_changed_files_text_hygiene.py
 ```
 
 GitHub Actions runs these checks on every pull request and on pushes to
