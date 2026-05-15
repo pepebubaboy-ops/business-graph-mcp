@@ -95,8 +95,9 @@ readability, but it is not lint-enforced in this PR because it has not been
 migrated into the active architecture yet.
 
 The text hygiene check scans tracked active repository files and flags lines
-over 220 characters, raw carriage return bytes, Unicode line separators,
-and Unicode bidi controls. It excludes `.git/`, `.venv/`,
+over 220 characters, raw carriage return bytes, byte order marks, Unicode line
+separators, Unicode bidi controls, zero-width characters, non-breaking spaces,
+soft hyphens, and any Unicode format characters. It excludes `.git/`, `.venv/`,
 `legacy/relation-memory-cowork/`, binary files, and packaged binary artifacts.
 
 ## Immediate Risks Found

@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import subprocess
+import unicodedata
 from pathlib import Path
 
 MAX_LINE_LENGTH = 220
-UNICODE_LINE_SEPARATORS = {
+EXPLICIT_FORBIDDEN_CHARACTERS = {
+    "\ufeff": "BOM U+FEFF",
     "\u2028": "U+2028",
     "\u2029": "U+2029",
-}
-BIDI_CONTROL_CHARACTERS = {
     "\u202a": "U+202A",
     "\u202b": "U+202B",
     "\u202c": "U+202C",
@@ -18,6 +18,13 @@ BIDI_CONTROL_CHARACTERS = {
     "\u2067": "U+2067",
     "\u2068": "U+2068",
     "\u2069": "U+2069",
+    "\u200b": "U+200B",
+    "\u200c": "U+200C",
+    "\u200d": "U+200D",
+    "\u2060": "U+2060",
+    "\u00ad": "U+00AD",
+    "\u00a0": "U+00A0",
+    "\u202f": "U+202F",
 }
 EXCLUDED_PARTS = {
     ".git",
@@ -72,13 +79,18 @@ def inspect_text_file(path: Path) -> list[str]:
     if b"\r" in data:
         findings.append(f"{path}: contains raw carriage return bytes")
 
-    for character, label in UNICODE_LINE_SEPARATORS.items():
-        if character in text:
-            findings.append(f"{path}: contains Unicode line separator {label}")
-
-    for character, label in BIDI_CONTROL_CHARACTERS.items():
-        if character in text:
-            findings.append(f"{path}: contains Unicode bidi control {label}")
+    for offset, character in enumerate(text):
+        if character in EXPLICIT_FORBIDDEN_CHARACTERS:
+            findings.append(
+                f"{path}: contains hidden/control character "
+                f"{EXPLICIT_FORBIDDEN_CHARACTERS[character]} at offset {offset}"
+            )
+        elif unicodedata.category(character) == "Cf":
+            findings.append(
+                f"{path}: contains Unicode format character "
+                f"U+{ord(character):04X} "
+                f"{unicodedata.name(character, 'UNKNOWN')} at offset {offset}"
+            )
 
     for line_number, line in enumerate(text.splitlines(), start=1):
         line_length = len(line)
@@ -111,7 +123,7 @@ def main() -> int:
 
     print(
         "Text hygiene check passed: no active tracked text files contain "
-        "CR bytes, Unicode line separators, bidi controls, or lines over "
+        "CR bytes, hidden/control formatting characters, or lines over "
         f"{MAX_LINE_LENGTH} characters."
     )
     return 0
