@@ -60,10 +60,20 @@ make docker-up
 ## Проверки
 
 ```bash
+make check
+```
+
+`make check` runs the same baseline checks as CI:
+
+```bash
 python -m pytest
 python -m ruff check .
 python scripts/check_long_lines.py
 ```
+
+GitHub Actions runs these checks on every pull request and on pushes to
+`master` with Python 3.11 and 3.12. Unit tests do not require Docker,
+Neo4j, Postgres, Redis, MinIO, Claude, Open WebUI, or network access.
 
 ## Репозиторий
 
@@ -82,6 +92,7 @@ cd business-graph-mcp
 - `docs/ARCHITECTURE.md` — целевая архитектура.
 - `docs/CODEX_PROMPTS.md` — последовательность промптов для Codex.
 - `docs/REVIEW_LOOP.md` — как ревьюить результат после каждого промпта.
+- `docs/CI_AND_SMOKE_TESTS.md` — CI baseline и adapter smoke tests.
 - `legacy/relation-memory-cowork/` — текущий MCPB/Relation Memory пакет
   как источник для миграции.
 
