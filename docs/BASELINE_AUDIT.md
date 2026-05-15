@@ -66,11 +66,16 @@ Verification was run in a local `.venv` created from Python 3.12.12.
 
 - `python -m pytest`: passed, 7 tests collected.
 - `python -m ruff check .`: passed.
+- `python scripts/check_long_lines.py`: passed.
 
 Ruff is configured to lint the active scaffold and tests while excluding
 `legacy/relation-memory-cowork/`. The legacy package was formatted for
 readability, but it is not lint-enforced in this PR because it has not been
 migrated into the active architecture yet.
+
+The long-line sanity check scans tracked active repository files and flags lines
+over 220 characters. It excludes `.git/`, `.venv/`,
+`legacy/relation-memory-cowork/`, binary files, and packaged binary artifacts.
 
 ## Immediate Risks Found
 

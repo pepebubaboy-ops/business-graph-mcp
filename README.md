@@ -57,6 +57,14 @@ cp .env.example .env
 make docker-up
 ```
 
+## Проверки
+
+```bash
+python -m pytest
+python -m ruff check .
+python scripts/check_long_lines.py
+```
+
 ## Репозиторий
 
 Публичный репозиторий уже создан:
