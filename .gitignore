@@ -17,6 +17,7 @@ build/
 .DS_Store
 
 # Runtime artifacts
+.data/
 data/raw/
 data/artifacts/
 data/tmp/

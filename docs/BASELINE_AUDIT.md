@@ -22,10 +22,17 @@ The repository is organized around the target Business Graph MCP architecture:
 Active scaffold modules:
 
 - `business_graph_core.models`
-  - domain enums for node, relation, relation status, and evidence quality
+  - domain enums for node, relation, relation status, file status,
+    and evidence quality
   - Pydantic models for evidence, nodes, relations, candidates, analysis results,
-    graph summaries, and pipeline proposals
+    graph summaries, file records, file upload results, and pipeline proposals
   - validation that confirmed relations require at least one evidence reference
+- `business_graph_core.files.registry`
+  - workspace-scoped file registry protocol
+  - in-memory registry implementation for tests and local MVP runs
+- `business_graph_core.files.storage`
+  - local file storage under `.data/files/{workspace_id}/{file_id}/`
+  - SHA-256 computation and filename sanitization
 - `business_graph_core.parsers.base`
   - parser protocol and parsed file/sheet/cell models
 - `business_graph_core.parsers.excel`
@@ -39,16 +46,21 @@ Active scaffold modules:
 - `business_graph_core.graph.memory_repo`
   - in-memory node/relation upsert and graph summary support
 - `business_graph_core.services.analyzer`
-  - local-file analyzer MVP for Excel dependency rules
+  - registered-file analyzer path using `workspace_id + file_ids`
+  - local-file analyzer helper for dev/backward compatibility
 - `business_graph_api.main`
   - `GET /health`
+  - `POST /api/v1/files`
+  - `GET /api/v1/files`
+  - `POST /api/v1/analyses/files`
   - `POST /api/v1/analyses/local-files`
   - `GET /api/v1/graph/summary`
   - `GET /api/v1/relations`
   - API key guard for non-health endpoints
 - `business_graph_mcp.server`
   - local FastMCP stdio server
-  - health, analyze files, graph summary, and relation listing tools
+  - health, registered-file analysis, local-file analysis, graph summary,
+    and relation listing tools
 
 Preserved legacy modules:
 
@@ -64,7 +76,7 @@ Preserved legacy modules:
 
 Verification was run in a local `.venv` created from Python 3.12.12.
 
-- `python -m pytest`: passed, 7 tests collected.
+- `python -m pytest`: passed, 15 tests collected.
 - `python -m ruff check .`: passed.
 - `python scripts/check_long_lines.py`: passed.
 
@@ -73,34 +85,35 @@ Ruff is configured to lint the active scaffold and tests while excluding
 readability, but it is not lint-enforced in this PR because it has not been
 migrated into the active architecture yet.
 
-The long-line sanity check scans tracked active repository files and flags lines
-over 220 characters. It excludes `.git/`, `.venv/`,
+The text hygiene check scans tracked active repository files and flags lines
+over 220 characters, raw carriage return bytes, Unicode line separators,
+and Unicode bidi controls. It excludes `.git/`, `.venv/`,
 `legacy/relation-memory-cowork/`, binary files, and packaged binary artifacts.
 
 ## Immediate Risks Found
 
-- The active API still accepts local filesystem paths for the MVP analyzer.
-  This is acceptable for local development, but production-facing file handling
-  should move to workspace-scoped file IDs and a file registry.
+- The active API still keeps a local filesystem path analyzer for development
+  and backward compatibility. Production-facing clients should prefer the
+  workspace-scoped file registry and `file_ids` flow.
 - The graph repository is in-memory only. State is process-local and shared
   through module-level service instances in the current API/MCP adapters.
-- The MCP adapter has no dedicated smoke test yet; current tests focus on
-  core extraction and FastAPI behavior.
+- The file registry and storage implementations are local MVP components.
+  Durable persistence should be added later without changing API/MCP contracts.
 - Legacy code still contains local-only assumptions, direct path usage,
   old `app.*` imports, and external service assumptions. It should remain
   reference-only until a focused migration PR.
 - Docker Compose defines Neo4j, Postgres, Redis, and MinIO, but unit tests do not
   require those services. Integration tests should stay optional unless a CI
   service matrix is added.
-- There is no CI workflow in the scaffold yet, so the baseline checks are local
-  rather than enforced by GitHub.
+- CI runs the baseline checks on Python 3.11 and 3.12. Integration tests for
+  external services remain intentionally out of required unit tests.
 
 ## Recommended Next PR
 
-Create a focused CI and adapter-smoke baseline PR:
+Create a focused durable persistence design PR:
 
-1. Add a GitHub Actions workflow that runs `python -m pytest` and
-   `python -m ruff check .` on Python 3.11 and 3.12.
-2. Add a minimal MCP adapter smoke test or documented manual MCP Inspector check.
-3. Keep Neo4j, Postgres, Redis, and MinIO out of required unit tests.
+1. Define how file records will move from in-memory registry to durable metadata
+   storage.
+2. Keep unit tests independent of Neo4j, Postgres, Redis, MinIO, and Docker.
+3. Preserve `workspace_id + file_ids` as the adapter contract.
 4. Do not migrate legacy modules in that PR.

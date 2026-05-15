@@ -54,6 +54,13 @@ class EvidenceQuality(StrEnum):
     MANUAL_APPROVAL = "manual_approval"
 
 
+class FileStatus(StrEnum):
+    REGISTERED = "registered"
+    STORED = "stored"
+    PARSED = "parsed"
+    FAILED = "failed"
+
+
 class EvidenceRef(BaseModel):
     id: str = Field(default_factory=lambda: f"evidence:{uuid4().hex}")
     source_file_id: str | None = None
@@ -119,6 +126,28 @@ class AnalysisRequest(BaseModel):
     objective: str = "Find business relationships in provided files."
     domain_hint: str = "generic"
     mode: str = "evidence_first"
+
+
+class FileRecord(BaseModel):
+    file_id: str
+    workspace_id: str = "default"
+    original_filename: str
+    content_type: str | None = None
+    size_bytes: int = Field(ge=0)
+    sha256: str
+    storage_path: str = Field(exclude=True)
+    status: FileStatus = FileStatus.REGISTERED
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class FileUploadResult(BaseModel):
+    file_id: str
+    workspace_id: str = "default"
+    original_filename: str
+    size_bytes: int = Field(ge=0)
+    sha256: str
+    status: FileStatus
 
 
 class GraphSummary(BaseModel):

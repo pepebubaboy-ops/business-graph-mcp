@@ -17,6 +17,7 @@ def test_mcp_adapter_expected_public_surface():
     expected_names = {
         "business_healthcheck",
         "business_analyze_files",
+        "business_analyze_registered_files",
         "business_get_graph_summary",
         "business_find_relations",
         "main",
@@ -40,6 +41,16 @@ def test_mcp_adapter_registers_expected_tools():
     assert {
         "business_healthcheck",
         "business_analyze_files",
+        "business_analyze_registered_files",
         "business_get_graph_summary",
         "business_find_relations",
     }.issubset(tool_names)
+
+
+def test_mcp_registered_file_analysis_surface_does_not_expose_paths():
+    module = importlib.import_module("business_graph_mcp.server")
+
+    result = module.business_analyze_registered_files(file_ids=[])
+
+    assert "storage_path" not in result
+    assert result["warnings"] == ["No file_ids provided for registered-file analysis."]
