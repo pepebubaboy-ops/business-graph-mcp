@@ -13,6 +13,7 @@ check:
 	python -m pytest
 	python -m ruff check .
 	python scripts/check_long_lines.py
+	python scripts/check_changed_files_text_hygiene.py
 
 run:
 	uvicorn business_graph_api.main:app --reload --host 0.0.0.0 --port 8000

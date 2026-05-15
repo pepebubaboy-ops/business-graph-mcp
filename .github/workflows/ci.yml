@@ -39,3 +39,6 @@ jobs:
 
       - name: Run text hygiene check
         run: python scripts/check_long_lines.py
+
+      - name: Run changed-files text hygiene check
+        run: python scripts/check_changed_files_text_hygiene.py

@@ -14,6 +14,7 @@ with development dependencies and runs:
 python -m pytest
 python -m ruff check .
 python scripts/check_long_lines.py
+python scripts/check_changed_files_text_hygiene.py
 ```
 
 These commands are also available locally through:

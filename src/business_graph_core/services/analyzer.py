@@ -5,6 +5,7 @@ from pathlib import Path
 from business_graph_core.extractors.explicit_rules import ExplicitRulesExtractor
 from business_graph_core.files.registry import FileRegistry, InMemoryFileRegistry
 from business_graph_core.graph.memory_repo import InMemoryGraphRepository
+from business_graph_core.graph.repository import GraphRepository
 from business_graph_core.models import AnalysisRequest, AnalysisResult, FileStatus
 from business_graph_core.parsers.excel import ExcelParser
 
@@ -17,7 +18,7 @@ class AnalyzerService:
     def __init__(
         self,
         *,
-        graph_repo: InMemoryGraphRepository | None = None,
+        graph_repo: GraphRepository | None = None,
         file_registry: FileRegistry | None = None,
         excel_parser: ExcelParser | None = None,
         explicit_rules_extractor: ExplicitRulesExtractor | None = None,

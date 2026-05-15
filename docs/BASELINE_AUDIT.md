@@ -45,22 +45,31 @@ Active scaffold modules:
   - evidence references from sheet, row, file, and reason
 - `business_graph_core.graph.memory_repo`
   - in-memory node/relation upsert and graph summary support
+  - workspace-scoped node and relation lookup
+- `business_graph_core.graph.repository`
+  - graph repository protocol shared by services
 - `business_graph_core.services.analyzer`
   - registered-file analyzer path using `workspace_id + file_ids`
   - local-file analyzer helper for dev/backward compatibility
+- `business_graph_core.services.graph_query`
+  - relation search by node, relation, type, and status
+  - direct relation explanation and deterministic path explanation
 - `business_graph_api.main`
   - `GET /health`
   - `POST /api/v1/files`
   - `GET /api/v1/files`
   - `POST /api/v1/analyses/files`
   - `POST /api/v1/analyses/local-files`
+  - `POST /api/v1/relations/search`
+  - `GET /api/v1/relations/{relation_id}/explain`
+  - `POST /api/v1/paths/explain`
   - `GET /api/v1/graph/summary`
   - `GET /api/v1/relations`
   - API key guard for non-health endpoints
 - `business_graph_mcp.server`
   - local FastMCP stdio server
   - health, registered-file analysis, local-file analysis, graph summary,
-    and relation listing tools
+    relation search, relation explanation, and path explanation tools
 
 Preserved legacy modules:
 
@@ -79,6 +88,7 @@ Verification was run in a local `.venv` created from Python 3.12.12.
 - `python -m pytest`: passed, 15 tests collected.
 - `python -m ruff check .`: passed.
 - `python scripts/check_long_lines.py`: passed.
+- `python scripts/check_changed_files_text_hygiene.py`: passed.
 
 Ruff is configured to lint the active scaffold and tests while excluding
 `legacy/relation-memory-cowork/`. The legacy package was formatted for
@@ -86,8 +96,11 @@ readability, but it is not lint-enforced in this PR because it has not been
 migrated into the active architecture yet.
 
 The text hygiene check scans tracked active repository files and flags lines
-over 220 characters, raw carriage return bytes, Unicode line separators,
-and Unicode bidi controls. It excludes `.git/`, `.venv/`,
+over 220 characters, raw carriage return bytes, byte order marks, Unicode line
+separators, Unicode bidi controls, zero-width characters, non-breaking spaces,
+soft hyphens, dangerous Unicode escape literals, unexpected control characters,
+and any Unicode format characters. The changed-files hygiene check applies the
+same rules to the active PR diff. These checks exclude `.git/`, `.venv/`,
 `legacy/relation-memory-cowork/`, binary files, and packaged binary artifacts.
 
 ## Immediate Risks Found
