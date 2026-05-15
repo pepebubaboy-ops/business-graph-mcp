@@ -37,5 +37,5 @@ jobs:
       - name: Run Ruff
         run: python -m ruff check .
 
-      - name: Run long-line sanity check
+      - name: Run text hygiene check
         run: python scripts/check_long_lines.py

@@ -4,6 +4,21 @@ import subprocess
 from pathlib import Path
 
 MAX_LINE_LENGTH = 220
+UNICODE_LINE_SEPARATORS = {
+    "\u2028": "U+2028",
+    "\u2029": "U+2029",
+}
+BIDI_CONTROL_CHARACTERS = {
+    "\u202a": "U+202A",
+    "\u202b": "U+202B",
+    "\u202c": "U+202C",
+    "\u202d": "U+202D",
+    "\u202e": "U+202E",
+    "\u2066": "U+2066",
+    "\u2067": "U+2067",
+    "\u2068": "U+2068",
+    "\u2069": "U+2069",
+}
 EXCLUDED_PARTS = {
     ".git",
     ".venv",
@@ -46,31 +61,58 @@ def is_text(data: bytes) -> bool:
     return True
 
 
-def main() -> int:
+def inspect_text_file(path: Path) -> list[str]:
+    findings: list[str] = []
+    data = path.read_bytes()
+    if not is_text(data):
+        return findings
+
+    text = data.decode("utf-8")
+
+    if b"\r" in data:
+        findings.append(f"{path}: contains raw carriage return bytes")
+
+    for character, label in UNICODE_LINE_SEPARATORS.items():
+        if character in text:
+            findings.append(f"{path}: contains Unicode line separator {label}")
+
+    for character, label in BIDI_CONTROL_CHARACTERS.items():
+        if character in text:
+            findings.append(f"{path}: contains Unicode bidi control {label}")
+
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        line_length = len(line)
+        if line_length > MAX_LINE_LENGTH:
+            findings.append(
+                f"{path}:{line_number}: line is {line_length} characters (max {MAX_LINE_LENGTH})"
+            )
+
+    return findings
+
+
+def scan_paths(paths: list[Path]) -> list[str]:
     findings: list[str] = []
 
-    for path in tracked_files():
+    for path in paths:
         if should_skip(path) or not path.is_file():
             continue
+        findings.extend(inspect_text_file(path))
 
-        data = path.read_bytes()
-        if not is_text(data):
-            continue
+    return findings
 
-        text = data.decode("utf-8")
-        for line_number, line in enumerate(text.splitlines(), start=1):
-            line_length = len(line)
-            if line_length > MAX_LINE_LENGTH:
-                findings.append(f"{path}:{line_number}: {line_length}")
+
+def main() -> int:
+    findings = scan_paths(tracked_files())
 
     if findings:
-        print("Suspicious long lines found:")
+        print("Text hygiene issues found:")
         print("\n".join(findings))
         return 1
 
     print(
-        "Long-line sanity check passed: "
-        f"no active tracked text lines over {MAX_LINE_LENGTH} characters."
+        "Text hygiene check passed: no active tracked text files contain "
+        "CR bytes, Unicode line separators, bidi controls, or lines over "
+        f"{MAX_LINE_LENGTH} characters."
     )
     return 0
 
