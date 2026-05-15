@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     app_env: str = "local"
     api_key: str = "dev-api-key-change-me"
     max_file_size_mb: int = 25
+    file_storage_root: str = ".data/files"
 
     neo4j_uri: str = "bolt://localhost:7687"
     neo4j_username: str = "neo4j"

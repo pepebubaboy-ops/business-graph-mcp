@@ -44,6 +44,27 @@ curl http://localhost:8000/health
 curl http://localhost:8000/openapi.json
 ```
 
+File-first analysis flow:
+
+```bash
+export API_KEY=dev-api-key-change-me
+
+curl -X POST "http://localhost:8000/api/v1/files?workspace_id=default" \
+  -H "X-API-Key: ${API_KEY}" \
+  -F "file=@examples/sample-data/dependency_rules.xlsx"
+
+curl -X POST http://localhost:8000/api/v1/analyses/files \
+  -H "X-API-Key: ${API_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"workspace_id":"default","file_ids":["file:replace-with-uploaded-id"]}'
+
+curl "http://localhost:8000/api/v1/graph/summary?workspace_id=default" \
+  -H "X-API-Key: ${API_KEY}"
+
+curl "http://localhost:8000/api/v1/relations?workspace_id=default" \
+  -H "X-API-Key: ${API_KEY}"
+```
+
 MCP stdio server для локального теста:
 
 ```bash
@@ -92,6 +113,7 @@ cd business-graph-mcp
 - `docs/ARCHITECTURE.md` — целевая архитектура.
 - `docs/CODEX_PROMPTS.md` — последовательность промптов для Codex.
 - `docs/REVIEW_LOOP.md` — как ревьюить результат после каждого промпта.
+- `docs/FILE_REGISTRY.md` — file-id production path и local-path dev flow.
 - `docs/CI_AND_SMOKE_TESTS.md` — CI baseline и adapter smoke tests.
 - `legacy/relation-memory-cowork/` — текущий MCPB/Relation Memory пакет
   как источник для миграции.
