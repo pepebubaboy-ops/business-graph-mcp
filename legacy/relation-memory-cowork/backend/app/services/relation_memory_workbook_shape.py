@@ -51,7 +51,9 @@ def normalize_row_metric_xlsx(
                 label = _cell_value(row, metric_col)
                 marker = _report_marker(label)
                 if marker:
-                    report_events.append({"kind": marker, "row_number": row_number, "label": str(label or "")})
+                    report_events.append(
+                        {"kind": marker, "row_number": row_number, "label": str(label or "")}
+                    )
                     continue
                 if not _looks_like_metric_label(label):
                     continue
@@ -63,7 +65,9 @@ def normalize_row_metric_xlsx(
                 if len(values_by_month) < 2:
                     continue
 
-                metric_code = _generated_metric_code(sheet.title, str(label), row_number, used_codes)
+                metric_code = _generated_metric_code(
+                    sheet.title, str(label), row_number, used_codes
+                )
                 used_codes.add(metric_code)
                 metric_codes.append(metric_code)
                 report_events.append(
@@ -102,7 +106,9 @@ def normalize_row_metric_xlsx(
     return normalized_path
 
 
-def column_has_numeric_values(canonical_header: str, raw_headers: list[str], rows: list[dict[str, Any]]) -> bool:
+def column_has_numeric_values(
+    canonical_header: str, raw_headers: list[str], rows: list[dict[str, Any]]
+) -> bool:
     for raw_header in raw_headers:
         raw_canonical = _canonical_header(raw_header)
         if raw_canonical == str(raw_header).strip():
@@ -149,7 +155,10 @@ def _looks_like_metric_label(value: Any) -> bool:
     lowered = text.lower()
     if lowered.endswith(":") and not any(char.isdigit() for char in lowered):
         return False
-    return lowered not in {"показатель", "в том числе", "в том числе:"} and "расшифровка" not in lowered
+    return (
+        lowered not in {"показатель", "в том числе", "в том числе:"}
+        and "расшифровка" not in lowered
+    )
 
 
 def _report_marker(value: Any) -> str | None:
@@ -205,7 +214,12 @@ def _add_row_report_dependency_priors(
 
         is_subsection = allow_subsections and _looks_like_subsection_parent(event["label"])
         targets = [segment_parent] if is_subsection else [current_parent or segment_parent]
-        if not is_subsection and current_parent and segment_parent and current_parent["metric_code"] != segment_parent["metric_code"]:
+        if (
+            not is_subsection
+            and current_parent
+            and segment_parent
+            and current_parent["metric_code"] != segment_parent["metric_code"]
+        ):
             targets.append(segment_parent)
 
         for target in targets:
@@ -286,7 +300,9 @@ def _cell_value(row: tuple[Any, ...], one_based_col: int) -> Any:
     return row[index]
 
 
-def _generated_metric_code(sheet_name: str, label: str, row_number: int, used_codes: set[str]) -> str:
+def _generated_metric_code(
+    sheet_name: str, label: str, row_number: int, used_codes: set[str]
+) -> str:
     sheet_code = normalize_metric_code(sheet_name)[:24].strip("_")
     label_code = normalize_metric_code(label)[:MAX_GENERATED_METRIC_CODE_LENGTH].strip("_")
     base = "_".join(part for part in [sheet_code, label_code] if part)

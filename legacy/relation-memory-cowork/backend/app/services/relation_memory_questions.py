@@ -49,7 +49,9 @@ class MetricResolver:
         plan: QuestionPlan,
         conversation_context: RelationMemoryConversationContext | None,
     ) -> MetricResolution:
-        normalized = self.resolver.resolve(question=plan.raw_question, conversation_context=conversation_context)
+        normalized = self.resolver.resolve(
+            question=plan.raw_question, conversation_context=conversation_context
+        )
         intent = normalized.intent
         if plan.intent == "change_cause" and normalized.intent in {"upstream", "unknown"}:
             intent = "change_cause"
@@ -61,7 +63,9 @@ class MetricResolver:
             planned_metrics = self._resolve_plan_slots(plan)
             if planned_metrics:
                 normalized.resolved_metrics = planned_metrics
-                normalized.matched_metrics = [candidate.to_payload() for candidate in planned_metrics]
+                normalized.matched_metrics = [
+                    candidate.to_payload() for candidate in planned_metrics
+                ]
                 normalized.handled = True
                 normalized.clarification_needed = False
                 normalized.clarification = None
@@ -72,7 +76,9 @@ class MetricResolver:
                 ]
                 normalized.updated_context.pending_clarification = None
                 normalized.updated_context.last_resolved_intent = intent
-                normalized.updated_context.last_resolved_metric_codes = [candidate.code for candidate in planned_metrics]
+                normalized.updated_context.last_resolved_metric_codes = [
+                    candidate.code for candidate in planned_metrics
+                ]
                 normalized.updated_context.source_utterance = plan.raw_question
         metrics = [ResolvedQuestionMetric.from_payload(item) for item in normalized.matched_metrics]
         return MetricResolution(
@@ -93,7 +99,10 @@ class MetricResolver:
             return True
         if plan.intent != normalized.intent:
             return True
-        return any(str(item.get("match_reason") or "") == "context_fallback" for item in normalized.matched_metrics)
+        return any(
+            str(item.get("match_reason") or "") == "context_fallback"
+            for item in normalized.matched_metrics
+        )
 
     def _resolve_plan_slots(self, plan: QuestionPlan) -> list[Any]:
         resolved_metrics = []
@@ -123,7 +132,11 @@ class MetricResolver:
 class EvidenceRetriever:
     def build_bundle(self, answer: GraphQuestionAnswer) -> EvidenceBundle:
         claims = [self._claim_from_row(answer.intent, row) for row in answer.rows]
-        confidence = answer.confidence if answer.confidence is not None else self._confidence_from_claims(answer, claims)
+        confidence = (
+            answer.confidence
+            if answer.confidence is not None
+            else self._confidence_from_claims(answer, claims)
+        )
         return EvidenceBundle(
             intent=answer.intent,
             fallback_answer=answer.answer,
@@ -161,7 +174,9 @@ class EvidenceRetriever:
         target = row.get("target_label") or row.get("target_metric_code")
         if source and target:
             return f"{source} -> {target}"
-        label = row.get("metric_label") or row.get("label") or row.get("code") or row.get("metric_code")
+        label = (
+            row.get("metric_label") or row.get("label") or row.get("code") or row.get("metric_code")
+        )
         if label:
             return str(label)
         return intent
@@ -180,7 +195,9 @@ class EvidenceRetriever:
             return round(max(0.0, min(1.0, value)), 3)
         return None
 
-    def _confidence_from_claims(self, answer: GraphQuestionAnswer, claims: list[EvidenceClaim]) -> float | None:
+    def _confidence_from_claims(
+        self, answer: GraphQuestionAnswer, claims: list[EvidenceClaim]
+    ) -> float | None:
         values = [float(claim.confidence) for claim in claims if claim.confidence is not None]
         if values:
             return round(max(values), 3)
@@ -205,7 +222,9 @@ class AnswerComposer:
 
     def compose(self, *, question: str, bundle: EvidenceBundle) -> AnswerDraft:
         if any(str(row.get("status") or "") == "external_context_candidate" for row in bundle.rows):
-            return AnswerDraft(answer=bundle.fallback_answer, answer_mode="llm_grounded", warnings=[])
+            return AnswerDraft(
+                answer=bundle.fallback_answer, answer_mode="llm_grounded", warnings=[]
+            )
         if (
             self.answer_narrator
             and getattr(self.answer_narrator, "enabled", False)
@@ -220,7 +239,9 @@ class AnswerComposer:
                 rows=bundle.rows,
             )
             mode = "llm_grounded" if not narration.warnings else "deterministic"
-            return AnswerDraft(answer=narration.answer, answer_mode=mode, warnings=list(narration.warnings))
+            return AnswerDraft(
+                answer=narration.answer, answer_mode=mode, warnings=list(narration.warnings)
+            )
         return AnswerDraft(answer=bundle.fallback_answer, answer_mode="deterministic", warnings=[])
 
 
@@ -246,12 +267,11 @@ class GroundingValidator:
     def _mentions_forbidden_metric(self, answer: str, bundle: EvidenceBundle) -> bool:
         normalized_answer = normalize_user_text(answer)
         allowed_codes = {
-            str(code)
-            for claim in bundle.claims
-            for code in claim.metric_codes
-            if str(code)
+            str(code) for claim in bundle.claims for code in claim.metric_codes if str(code)
         }
-        allowed_codes.update(str(item.get("code") or "") for item in bundle.matched_metrics if item.get("code"))
+        allowed_codes.update(
+            str(item.get("code") or "") for item in bundle.matched_metrics if item.get("code")
+        )
         known_metrics = {
             **self.metric_map,
             **{
@@ -264,7 +284,9 @@ class GroundingValidator:
                 if code not in self.metric_map
             },
         }
-        allowed_mentions = self._allowed_metric_mentions(allowed_codes=allowed_codes, known_metrics=known_metrics, bundle=bundle)
+        allowed_mentions = self._allowed_metric_mentions(
+            allowed_codes=allowed_codes, known_metrics=known_metrics, bundle=bundle
+        )
         evidence_text = self._normalized_evidence_text(bundle)
         for code, metric in known_metrics.items():
             if code in allowed_codes:
@@ -283,9 +305,14 @@ class GroundingValidator:
                     for mention in allowed_mentions
                 ):
                     continue
-                if self._contains_grounded_candidate(evidence_text=evidence_text, normalized_candidate=normalized_candidate):
+                if self._contains_grounded_candidate(
+                    evidence_text=evidence_text, normalized_candidate=normalized_candidate
+                ):
                     continue
-                if re.search(rf"(?<![0-9a-zа-яё_]){re.escape(normalized_candidate)}(?![0-9a-zа-яё_])", normalized_answer):
+                if re.search(
+                    rf"(?<![0-9a-zа-яё_]){re.escape(normalized_candidate)}(?![0-9a-zа-яё_])",
+                    normalized_answer,
+                ):
                     return True
         return False
 
@@ -308,11 +335,16 @@ class GroundingValidator:
         if isinstance(value, str):
             values.append(value)
 
-    def _contains_grounded_candidate(self, *, evidence_text: str, normalized_candidate: str) -> bool:
+    def _contains_grounded_candidate(
+        self, *, evidence_text: str, normalized_candidate: str
+    ) -> bool:
         if len(normalized_candidate) < 4 or not evidence_text:
             return False
         return bool(
-            re.search(rf"(?<![0-9a-zа-яё_]){re.escape(normalized_candidate)}(?![0-9a-zа-яё_])", evidence_text)
+            re.search(
+                rf"(?<![0-9a-zа-яё_]){re.escape(normalized_candidate)}(?![0-9a-zа-яё_])",
+                evidence_text,
+            )
         )
 
     def _allowed_metric_mentions(
@@ -364,9 +396,14 @@ class GroundingValidator:
                 normalized_candidate = normalize_user_text(candidate)
                 if len(normalized_candidate) < 4:
                     continue
-                if any(normalized_candidate == normalize_user_text(label) for label in display_labels):
+                if any(
+                    normalized_candidate == normalize_user_text(label) for label in display_labels
+                ):
                     continue
-                if re.search(rf"(?<![0-9a-zа-яё_]){re.escape(normalized_candidate)}(?![0-9a-zа-яё_])", normalized_answer):
+                if re.search(
+                    rf"(?<![0-9a-zа-яё_]){re.escape(normalized_candidate)}(?![0-9a-zа-яё_])",
+                    normalized_answer,
+                ):
                     return True
         return False
 
@@ -423,7 +460,9 @@ class RelationMemoryQuestionService:
         external_context_suggester: RelationMemoryExternalContextSuggester | None = None,
     ):
         self.answer_narrator = answer_narrator
-        self.external_context_suggester = external_context_suggester or RelationMemoryExternalContextSuggester()
+        self.external_context_suggester = (
+            external_context_suggester or RelationMemoryExternalContextSuggester()
+        )
         self.planner = QuestionPlanner()
         self.evidence_retriever = EvidenceRetriever()
 
@@ -516,7 +555,9 @@ class RelationMemoryQuestionService:
             )
         metric_lookup = self._metric_lookup(metric_map)
         matched_metrics = self._localized_matched_metrics(resolved.matched_metrics, metric_lookup)
-        resolved_codes = [str(item.get("code") or "") for item in matched_metrics if str(item.get("code") or "")]
+        resolved_codes = [
+            str(item.get("code") or "") for item in matched_metrics if str(item.get("code") or "")
+        ]
 
         if intent in {"upstream", "downstream"} and not resolved_codes:
             return finalize(
@@ -562,7 +603,9 @@ class RelationMemoryQuestionService:
                 requested_direction=plan.requested_direction,
                 matched_metrics=matched_metrics,
             )
-            answer.warnings = list(dict.fromkeys([*plan.warnings, *resolved.warnings, *answer.warnings]))
+            answer.warnings = list(
+                dict.fromkeys([*plan.warnings, *resolved.warnings, *answer.warnings])
+            )
             answer.updated_context = resolved.updated_context
             answer.confirmed_aliases = [item.__dict__ for item in resolved.confirmed_aliases]
             return finalize(answer)
@@ -575,7 +618,9 @@ class RelationMemoryQuestionService:
                 matched_metrics=matched_metrics,
                 question=question,
             )
-            answer.warnings = list(dict.fromkeys([*plan.warnings, *resolved.warnings, *answer.warnings]))
+            answer.warnings = list(
+                dict.fromkeys([*plan.warnings, *resolved.warnings, *answer.warnings])
+            )
             answer.updated_context = resolved.updated_context
             answer.confirmed_aliases = [item.__dict__ for item in resolved.confirmed_aliases]
             return finalize(answer)
@@ -588,19 +633,29 @@ class RelationMemoryQuestionService:
                 matched_metrics=matched_metrics,
                 question=question,
             )
-            answer.warnings = list(dict.fromkeys([*plan.warnings, *resolved.warnings, *answer.warnings]))
+            answer.warnings = list(
+                dict.fromkeys([*plan.warnings, *resolved.warnings, *answer.warnings])
+            )
             answer.updated_context = resolved.updated_context
             answer.confirmed_aliases = [item.__dict__ for item in resolved.confirmed_aliases]
             return finalize(answer)
         if intent == "relation_why":
             first = resolved_codes[0]
             second = resolved_codes[1]
-            answer = self._answer_relation(first, second, dependencies, metric_lookup, matched_metrics=matched_metrics)
-            answer.warnings = list(dict.fromkeys([*plan.warnings, *resolved.warnings, *answer.warnings]))
+            answer = self._answer_relation(
+                first, second, dependencies, metric_lookup, matched_metrics=matched_metrics
+            )
+            answer.warnings = list(
+                dict.fromkeys([*plan.warnings, *resolved.warnings, *answer.warnings])
+            )
             answer.updated_context = resolved.updated_context
             answer.confirmed_aliases = [item.__dict__ for item in resolved.confirmed_aliases]
             return finalize(answer)
-        return finalize(GraphQuestionAnswer(handled=False, updated_context=resolved.updated_context, answer_mode="fallback"))
+        return finalize(
+            GraphQuestionAnswer(
+                handled=False, updated_context=resolved.updated_context, answer_mode="fallback"
+            )
+        )
 
     def should_answer_as_question(
         self,
@@ -685,9 +740,7 @@ class RelationMemoryQuestionService:
             )
 
         all_target_observations = [
-            item
-            for item in observations
-            if str(item.get("metric_code") or "") == target
+            item for item in observations if str(item.get("metric_code") or "") == target
         ]
         target_observations = self._filter_observations_by_direction(
             all_target_observations,
@@ -709,7 +762,11 @@ class RelationMemoryQuestionService:
                 intent="change_cause",
                 answer=answer,
                 matched_metrics=matched_metrics or [self._metric_payload(target, metric_lookup)],
-                rows=[self._observation_row(strongest_observation, metric_lookup, status="direction_mismatch")],
+                rows=[
+                    self._observation_row(
+                        strongest_observation, metric_lookup, status="direction_mismatch"
+                    )
+                ],
                 confidence=0.0,
                 warnings=["requested_change_direction_not_observed"],
             )
@@ -746,7 +803,9 @@ class RelationMemoryQuestionService:
                     "target_metric_code": target,
                     "target_label": self._metric_label(target, metric_lookup),
                     "metric_codes": metric_codes,
-                    "path_text": " -> ".join(self._metric_label(code, metric_lookup) for code in metric_codes),
+                    "path_text": " -> ".join(
+                        self._metric_label(code, metric_lookup) for code in metric_codes
+                    ),
                     "hops": int(hypothesis.get("hops") or max(0, len(metric_codes) - 1)),
                     "confidence": float(hypothesis.get("confidence") or 0.0),
                     "mechanism_type": hypothesis.get("mechanism_type") or "",
@@ -768,11 +827,15 @@ class RelationMemoryQuestionService:
                 f"«{self._short_label(str(source_label))}»."
             )
             if best.get("previous_period") and best.get("current_period"):
-                answer += f" Это видно на периоде {best['previous_period']} -> {best['current_period']}."
+                answer += (
+                    f" Это видно на периоде {best['previous_period']} -> {best['current_period']}."
+                )
             if explanation:
                 answer += f" Основание: {explanation}."
         elif target_observations:
-            rows = [self._observation_row(target_observations[0], metric_lookup, status="observation")]
+            rows = [
+                self._observation_row(target_observations[0], metric_lookup, status="observation")
+            ]
             answer = (
                 f"По «{self._short_label(target_label)}» есть наблюдение изменения, "
                 "но в текущей сессии нет причинной гипотезы, которую можно уверенно назвать драйвером."
@@ -836,7 +899,13 @@ class RelationMemoryQuestionService:
         requested_direction: str,
     ) -> str:
         observed_direction = self._observation_direction(observation)
-        observed_text = "снижение" if observed_direction == "down" else "рост" if observed_direction == "up" else "изменения без выраженного направления"
+        observed_text = (
+            "снижение"
+            if observed_direction == "down"
+            else "рост"
+            if observed_direction == "up"
+            else "изменения без выраженного направления"
+        )
         requested_text = "роста" if requested_direction == "up" else "снижения"
         period = ""
         previous_period = str(observation.get("previous_period") or "")
@@ -886,9 +955,13 @@ class RelationMemoryQuestionService:
         label = self._metric_label(target, metric_lookup)
         warnings: list[str] = []
         if not rows:
-            downstream_paths = self._find_downstream_paths(target, self._forward_edges(dependencies))
+            downstream_paths = self._find_downstream_paths(
+                target, self._forward_edges(dependencies)
+            )
             if downstream_paths:
-                downstream_rows = [self._path_row(path, metric_lookup) for path in downstream_paths[:3]]
+                downstream_rows = [
+                    self._path_row(path, metric_lookup) for path in downstream_paths[:3]
+                ]
                 downstream_labels = [
                     str(row.get("target_label") or row.get("target_metric_code") or "")
                     for row in downstream_rows
@@ -1043,15 +1116,23 @@ class RelationMemoryQuestionService:
         anchor_label: str,
     ) -> dict[str, Any] | None:
         if intent == "upstream":
-            source_label = str(suggestion.get("source_label") or suggestion.get("label") or "").strip()
-            source_code = self._external_metric_code(suggestion.get("source_metric_code"), source_label)
+            source_label = str(
+                suggestion.get("source_label") or suggestion.get("label") or ""
+            ).strip()
+            source_code = self._external_metric_code(
+                suggestion.get("source_metric_code"), source_label
+            )
             target_code = anchor_code
             target_label = anchor_label
         else:
             source_code = anchor_code
             source_label = anchor_label
-            target_label = str(suggestion.get("target_label") or suggestion.get("label") or "").strip()
-            target_code = self._external_metric_code(suggestion.get("target_metric_code"), target_label)
+            target_label = str(
+                suggestion.get("target_label") or suggestion.get("label") or ""
+            ).strip()
+            target_code = self._external_metric_code(
+                suggestion.get("target_metric_code"), target_label
+            )
         if not source_code or not target_code or source_code == target_code:
             return None
         if not source_label:
@@ -1133,10 +1214,38 @@ class RelationMemoryQuestionService:
         code = re.sub(r"_+", "_", code).strip("_")
         if re.search(r"[а-я]", code):
             translit = {
-                "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ж": "zh", "з": "z",
-                "и": "i", "й": "y", "к": "k", "л": "l", "м": "m", "н": "n", "о": "o", "п": "p",
-                "р": "r", "с": "s", "т": "t", "у": "u", "ф": "f", "х": "h", "ц": "c", "ч": "ch",
-                "ш": "sh", "щ": "sch", "ы": "y", "э": "e", "ю": "yu", "я": "ya", "ь": "", "ъ": "",
+                "а": "a",
+                "б": "b",
+                "в": "v",
+                "г": "g",
+                "д": "d",
+                "е": "e",
+                "ж": "zh",
+                "з": "z",
+                "и": "i",
+                "й": "y",
+                "к": "k",
+                "л": "l",
+                "м": "m",
+                "н": "n",
+                "о": "o",
+                "п": "p",
+                "р": "r",
+                "с": "s",
+                "т": "t",
+                "у": "u",
+                "ф": "f",
+                "х": "h",
+                "ц": "c",
+                "ч": "ch",
+                "ш": "sh",
+                "щ": "sch",
+                "ы": "y",
+                "э": "e",
+                "ю": "yu",
+                "я": "ya",
+                "ь": "",
+                "ъ": "",
             }
             code = "".join(translit.get(char, char) for char in code)
             code = re.sub(r"[^0-9a-z_]+", "_", code)
@@ -1159,13 +1268,18 @@ class RelationMemoryQuestionService:
     ) -> str:
         anchor_text = self._short_label(anchor_label)
         if direction == "upstream":
-            labels = [str(row.get("source_label") or row.get("source_metric_code") or "") for row in rows[:3]]
+            labels = [
+                str(row.get("source_label") or row.get("source_metric_code") or "")
+                for row in rows[:3]
+            ]
             return (
                 f"В подтвержденном графе для «{anchor_text}» входящих связей пока нет. "
                 f"Как внешний контекст для проверки я бы добавил кандидаты: {self._format_label_list(labels)}. "
                 "Это не сохраненные факты графа; их нужно подтвердить или отклонить."
             )
-        labels = [str(row.get("target_label") or row.get("target_metric_code") or "") for row in rows[:3]]
+        labels = [
+            str(row.get("target_label") or row.get("target_metric_code") or "") for row in rows[:3]
+        ]
         return (
             f"В подтвержденном графе у «{anchor_text}» downstream-связей пока нет. "
             f"Как внешний контекст для проверки я бы добавил кандидаты: {self._format_label_list(labels)}. "
@@ -1186,7 +1300,9 @@ class RelationMemoryQuestionService:
         paths = self._find_downstream_paths(first, forward_edges, target=second, max_hops=max_hops)
         direction = (first, second)
         if not paths:
-            reverse_paths = self._find_downstream_paths(second, forward_edges, target=first, max_hops=max_hops)
+            reverse_paths = self._find_downstream_paths(
+                second, forward_edges, target=first, max_hops=max_hops
+            )
             if reverse_paths:
                 paths = reverse_paths
                 direction = (second, first)
@@ -1209,7 +1325,11 @@ class RelationMemoryQuestionService:
             handled=True,
             intent="relation_why",
             answer=answer,
-            matched_metrics=matched_metrics or [self._metric_payload(first, metric_lookup), self._metric_payload(second, metric_lookup)],
+            matched_metrics=matched_metrics
+            or [
+                self._metric_payload(first, metric_lookup),
+                self._metric_payload(second, metric_lookup),
+            ],
             rows=rows,
             cypher_hint=(
                 f"MATCH p=(:Metric {{code: '{direction[0]}'}})-[:DRIVES*1..{max_hops}]->"
@@ -1217,7 +1337,9 @@ class RelationMemoryQuestionService:
             ),
         )
 
-    def _answer_pending(self, pending_confirmations: list[CandidateRelation]) -> GraphQuestionAnswer:
+    def _answer_pending(
+        self, pending_confirmations: list[CandidateRelation]
+    ) -> GraphQuestionAnswer:
         rows = [
             {
                 "id": item.id,
@@ -1228,13 +1350,18 @@ class RelationMemoryQuestionService:
                 "evidence_type": item.evidence_type,
                 "reason": item.needs_approval_reason or item.note or item.evidence,
             }
-            for item in sorted(pending_confirmations, key=lambda candidate: -float(candidate.score or candidate.confidence or 0.0))[:20]
+            for item in sorted(
+                pending_confirmations,
+                key=lambda candidate: -float(candidate.score or candidate.confidence or 0.0),
+            )[:20]
         ]
         answer = (
             f"Есть {len(pending_confirmations)} связей, ожидающих подтверждения. "
             f"Показываю top-{len(rows)} по score."
         )
-        return GraphQuestionAnswer(handled=True, intent="pending_confirmations", answer=answer, rows=rows)
+        return GraphQuestionAnswer(
+            handled=True, intent="pending_confirmations", answer=answer, rows=rows
+        )
 
     def _answer_relations_overview(
         self,
@@ -1246,9 +1373,13 @@ class RelationMemoryQuestionService:
         confirmed_rows = [
             {
                 "source_metric_code": str(item.get("source_metric_code") or ""),
-                "source_label": self._metric_label(str(item.get("source_metric_code") or ""), metric_lookup),
+                "source_label": self._metric_label(
+                    str(item.get("source_metric_code") or ""), metric_lookup
+                ),
                 "target_metric_code": str(item.get("target_metric_code") or ""),
-                "target_label": self._metric_label(str(item.get("target_metric_code") or ""), metric_lookup),
+                "target_label": self._metric_label(
+                    str(item.get("target_metric_code") or ""), metric_lookup
+                ),
                 "edge_type": item.get("edge_type") or "driver",
                 "strength": float(item.get("strength") or 0.0),
                 "reason": item.get("reason") or "",
@@ -1283,7 +1414,9 @@ class RelationMemoryQuestionService:
         rows = [*confirmed_rows[:12], *pending_rows[:8]]
         if not rows:
             answer = "В текущей сессии пока нет связей в графе и нет связей на проверке."
-            return GraphQuestionAnswer(handled=True, intent="relations_overview", answer=answer, rows=[])
+            return GraphQuestionAnswer(
+                handled=True, intent="relations_overview", answer=answer, rows=[]
+            )
 
         graph_count = len(confirmed_rows)
         pending_count = len(pending_rows)
@@ -1296,7 +1429,9 @@ class RelationMemoryQuestionService:
             f"и {self._relation_count_phrase(pending_count)} на проверке. "
             f"Первые примеры: {examples}."
         )
-        return GraphQuestionAnswer(handled=True, intent="relations_overview", answer=answer, rows=rows)
+        return GraphQuestionAnswer(
+            handled=True, intent="relations_overview", answer=answer, rows=rows
+        )
 
     def _relation_count_phrase(self, count: int) -> str:
         return self._ru_count_phrase(count, one="связь", few="связи", many="связей")
@@ -1328,8 +1463,7 @@ class RelationMemoryQuestionService:
                     "target_label": self._metric_label(target, metric_lookup) if target else "",
                     "metric_codes": metric_codes,
                     "path_labels": [
-                        self._metric_label(code, metric_lookup)
-                        for code in metric_codes
+                        self._metric_label(code, metric_lookup) for code in metric_codes
                     ],
                     "mechanism_type": item.get("mechanism_type") or "",
                     "support_window": item.get("support_window") or "",
@@ -1346,10 +1480,7 @@ class RelationMemoryQuestionService:
                 rows=[],
             )
 
-        examples = "; ".join(
-            self._hypothesis_example(row)
-            for row in rows[:5]
-        )
+        examples = "; ".join(self._hypothesis_example(row) for row in rows[:5])
         count_phrase = self._ru_count_phrase(
             len(hypotheses),
             one="гипотеза",
@@ -1360,7 +1491,9 @@ class RelationMemoryQuestionService:
             f"В текущей сессии есть {count_phrase}. "
             f"Показываю top-{len(rows)} по confidence. Первые примеры: {examples}."
         )
-        return GraphQuestionAnswer(handled=True, intent="hypotheses_overview", answer=answer, rows=rows)
+        return GraphQuestionAnswer(
+            handled=True, intent="hypotheses_overview", answer=answer, rows=rows
+        )
 
     def _hypothesis_example(self, row: dict[str, Any]) -> str:
         source = str(row.get("source_label") or "").strip()
@@ -1390,7 +1523,9 @@ class RelationMemoryQuestionService:
                 {
                     "id": item.get("id") or "",
                     "metric_code": metric_code,
-                    "metric_label": self._metric_label(metric_code, metric_lookup) if metric_code else "",
+                    "metric_label": self._metric_label(metric_code, metric_lookup)
+                    if metric_code
+                    else "",
                     "kind": item.get("kind") or "",
                     "reference_mode": item.get("reference_mode") or "",
                     "previous_period": item.get("previous_period") or "",
@@ -1422,10 +1557,14 @@ class RelationMemoryQuestionService:
             f"В текущей сессии есть {count_phrase}. "
             f"Показываю top-{len(rows)} по score. Первые примеры: {examples}."
         )
-        return GraphQuestionAnswer(handled=True, intent="observations_overview", answer=answer, rows=rows)
+        return GraphQuestionAnswer(
+            handled=True, intent="observations_overview", answer=answer, rows=rows
+        )
 
     def _observation_example(self, row: dict[str, Any]) -> str:
-        label = self._short_label(str(row.get("metric_label") or row.get("metric_code") or "метрика"))
+        label = self._short_label(
+            str(row.get("metric_label") or row.get("metric_code") or "метрика")
+        )
         previous_period = str(row.get("previous_period") or "")
         current_period = str(row.get("current_period") or "")
         delta_abs = row.get("delta_abs")
@@ -1440,7 +1579,9 @@ class RelationMemoryQuestionService:
             return f"«{label}»: {direction} с {previous_period} до {current_period}"
         return f"«{label}» {direction}"
 
-    def _answer_metrics_overview(self, metric_lookup: dict[str, dict[str, Any]]) -> GraphQuestionAnswer:
+    def _answer_metrics_overview(
+        self, metric_lookup: dict[str, dict[str, Any]]
+    ) -> GraphQuestionAnswer:
         rows = [
             {
                 "code": code,
@@ -1462,7 +1603,9 @@ class RelationMemoryQuestionService:
         examples = "; ".join(f"«{self._short_label(str(row['label']))}»" for row in rows[:8])
         count_phrase = self._ru_count_phrase(len(rows), one="метрика", few="метрики", many="метрик")
         answer = f"В текущей сессии есть {count_phrase}. Первые примеры: {examples}."
-        return GraphQuestionAnswer(handled=True, intent="metrics_overview", answer=answer, rows=rows[:30])
+        return GraphQuestionAnswer(
+            handled=True, intent="metrics_overview", answer=answer, rows=rows[:30]
+        )
 
     def _ru_count_phrase(self, count: int, *, one: str, few: str, many: str) -> str:
         value = abs(int(count))
@@ -1546,9 +1689,8 @@ class RelationMemoryQuestionService:
         indirect_labels = [
             self._terminal_label(row, direction=direction)
             for row in indirect_rows
-            if self._terminal_code(row, direction=direction) not in {
-                self._terminal_code(item, direction=direction) for item in direct_rows
-            }
+            if self._terminal_code(row, direction=direction)
+            not in {self._terminal_code(item, direction=direction) for item in direct_rows}
         ][:2]
 
         if direction == "downstream":
@@ -1582,7 +1724,11 @@ class RelationMemoryQuestionService:
     ) -> str:
         source_text = self._short_label(source_label)
         target_text = self._short_label(target_label)
-        path_labels = [self._short_label(item) for item in str(best_row.get("path_text") or "").split(" -> ") if item]
+        path_labels = [
+            self._short_label(item)
+            for item in str(best_row.get("path_text") or "").split(" -> ")
+            if item
+        ]
         if int(best_row.get("hops") or 0) <= 1:
             answer = f"Связь есть, и она прямая: «{source_text}» влияет на «{target_text}»."
         else:
@@ -1628,10 +1774,22 @@ class RelationMemoryQuestionService:
                 next_codes = [source, *metric_codes]
                 next_edges = [dependency, *edge_records]
                 next_strength = total_strength + float(dependency.get("strength") or 0.0)
-                paths.append({"metric_codes": next_codes, "edge_records": next_edges, "total_strength": next_strength})
+                paths.append(
+                    {
+                        "metric_codes": next_codes,
+                        "edge_records": next_edges,
+                        "total_strength": next_strength,
+                    }
+                )
                 if len(next_codes) - 1 < max_hops:
                     queue.append((source, next_codes, next_edges, next_strength))
-        paths.sort(key=lambda item: (len(item["metric_codes"]), -float(item["total_strength"]), item["metric_codes"][0]))
+        paths.sort(
+            key=lambda item: (
+                len(item["metric_codes"]),
+                -float(item["total_strength"]),
+                item["metric_codes"][0],
+            )
+        )
         return paths[:50]
 
     def _find_downstream_paths(
@@ -1649,7 +1807,11 @@ class RelationMemoryQuestionService:
             current, metric_codes, edge_records, total_strength = queue.pop(0)
             if len(metric_codes) > max_hops + 1:
                 continue
-            if target is not None and found_target_hops is not None and len(metric_codes) - 1 >= found_target_hops:
+            if (
+                target is not None
+                and found_target_hops is not None
+                and len(metric_codes) - 1 >= found_target_hops
+            ):
                 continue
             for dependency in forward_edges.get(current, []):
                 next_metric = str(dependency.get("target_metric_code") or "")
@@ -1658,20 +1820,33 @@ class RelationMemoryQuestionService:
                 next_codes = [*metric_codes, next_metric]
                 next_edges = [*edge_records, dependency]
                 next_strength = total_strength + float(dependency.get("strength") or 0.0)
-                path = {"metric_codes": next_codes, "edge_records": next_edges, "total_strength": next_strength}
+                path = {
+                    "metric_codes": next_codes,
+                    "edge_records": next_edges,
+                    "total_strength": next_strength,
+                }
                 if target is None or next_metric == target:
                     paths.append(path)
                     if target is not None:
                         found_target_hops = min(found_target_hops or max_hops, len(next_codes) - 1)
-                if (
-                    len(next_codes) - 1 < max_hops
-                    and (target is None or found_target_hops is None or len(next_codes) - 1 < found_target_hops)
+                if len(next_codes) - 1 < max_hops and (
+                    target is None
+                    or found_target_hops is None
+                    or len(next_codes) - 1 < found_target_hops
                 ):
                     queue.append((next_metric, next_codes, next_edges, next_strength))
-        paths.sort(key=lambda item: (len(item["metric_codes"]), -float(item["total_strength"]), item["metric_codes"][-1]))
+        paths.sort(
+            key=lambda item: (
+                len(item["metric_codes"]),
+                -float(item["total_strength"]),
+                item["metric_codes"][-1],
+            )
+        )
         return paths[:50]
 
-    def _path_row(self, path: dict[str, Any], metric_lookup: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    def _path_row(
+        self, path: dict[str, Any], metric_lookup: dict[str, dict[str, Any]]
+    ) -> dict[str, Any]:
         metric_codes = list(path["metric_codes"])
         first_edge = path["edge_records"][0] if path.get("edge_records") else {}
         return {
@@ -1680,14 +1855,18 @@ class RelationMemoryQuestionService:
             "target_metric_code": metric_codes[-1],
             "target_label": self._metric_label(metric_codes[-1], metric_lookup),
             "metric_codes": metric_codes,
-            "path_text": " -> ".join(self._metric_label(code, metric_lookup) for code in metric_codes),
+            "path_text": " -> ".join(
+                self._metric_label(code, metric_lookup) for code in metric_codes
+            ),
             "edge_types": [item.get("edge_type") for item in path.get("edge_records", [])],
             "hops": len(metric_codes) - 1,
             "total_strength": round(float(path.get("total_strength") or 0.0), 3),
             "first_reason": self._humanize_reason(str(first_edge.get("reason") or "")),
         }
 
-    def _metric_payload(self, code: str, metric_lookup: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    def _metric_payload(
+        self, code: str, metric_lookup: dict[str, dict[str, Any]]
+    ) -> dict[str, Any]:
         return {
             "code": code,
             "label": self._metric_label(code, metric_lookup),

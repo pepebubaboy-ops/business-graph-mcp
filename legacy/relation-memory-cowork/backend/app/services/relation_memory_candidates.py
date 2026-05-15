@@ -66,9 +66,7 @@ def candidate_relations_from_dependencies(
     limit: int,
 ) -> list[dict[str, Any]]:
     row_dependencies = [
-        dependency
-        for dependency in dependencies
-        if dependency.get("source") == row_relation_source
+        dependency for dependency in dependencies if dependency.get("source") == row_relation_source
     ]
     row_dependencies.sort(
         key=lambda item: (

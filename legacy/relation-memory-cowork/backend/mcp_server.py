@@ -87,7 +87,9 @@ def relation_memory_export_review(
 ) -> dict[str, str]:
     """Export relations_review.xlsx and evidence_report.md for a session."""
 
-    return engine().export_review(session_id=session_id, workspace_root=workspace_root, output_dir=output_dir)
+    return engine().export_review(
+        session_id=session_id, workspace_root=workspace_root, output_dir=output_dir
+    )
 
 
 @mcp.tool()

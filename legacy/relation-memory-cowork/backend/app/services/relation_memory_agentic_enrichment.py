@@ -9,7 +9,11 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.formula.tokenizer import Tokenizer
 from openpyxl.utils.cell import get_column_letter, range_boundaries
 
-from app.services.relation_memory_agent import LlmJsonError, RelationMemoryLlmClient, normalize_candidate_payload
+from app.services.relation_memory_agent import (
+    LlmJsonError,
+    RelationMemoryLlmClient,
+    normalize_candidate_payload,
+)
 from app.services.relation_memory_business_literature import BusinessLiteratureRetriever
 from app.services.relation_memory_ingestion import normalize_metric_code
 
@@ -194,11 +198,15 @@ class AgenticWorkbookRelationEnricher:
         self.literature_retriever = literature_retriever or BusinessLiteratureRetriever()
         self.enable_llm_relation_judging = enable_llm_relation_judging
 
-    def enrich_workbook(self, path: str | Path, *, document_id: str, filename: str) -> AgenticWorkbookEnrichmentResult:
+    def enrich_workbook(
+        self, path: str | Path, *, document_id: str, filename: str
+    ) -> AgenticWorkbookEnrichmentResult:
         result = AgenticWorkbookEnrichmentResult()
         workbook = load_workbook(path, data_only=False, read_only=False)
         try:
-            index = _build_workbook_index(workbook=workbook, document_id=document_id, filename=filename)
+            index = _build_workbook_index(
+                workbook=workbook, document_id=document_id, filename=filename
+            )
             seen_metric_codes: set[str] = set()
             proposed_pairs: list[dict[str, Any]] = []
             formula_pairs: list[dict[str, Any]] = []
@@ -229,11 +237,19 @@ class AgenticWorkbookRelationEnricher:
                     seen_pair_keys=seen_pair_keys,
                 )
 
-            result.metric_dictionary_rows = [_metric_dictionary_row(metric) for metric in result.metrics]
-            relations = self._judge_relation_pairs(index=index, proposed_pairs=proposed_pairs, warnings=result.warnings)
-            relations.extend(_deterministic_formula_relations(formula_pairs, document_id=document_id))
+            result.metric_dictionary_rows = [
+                _metric_dictionary_row(metric) for metric in result.metrics
+            ]
+            relations = self._judge_relation_pairs(
+                index=index, proposed_pairs=proposed_pairs, warnings=result.warnings
+            )
+            relations.extend(
+                _deterministic_formula_relations(formula_pairs, document_id=document_id)
+            )
             result.candidate_relations = _dedupe_relations(relations)
-            result.dependency_rule_rows = [_dependency_rule_row(relation) for relation in result.candidate_relations]
+            result.dependency_rule_rows = [
+                _dependency_rule_row(relation) for relation in result.candidate_relations
+            ]
         finally:
             workbook.close()
         return result
@@ -255,7 +271,9 @@ class AgenticWorkbookRelationEnricher:
                 warnings.append(f"agentic_relation_llm_fallback:{exc}")
         return relations
 
-    def _classify_relation_batch(self, *, index: WorkbookIndex, proposed_pairs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def _classify_relation_batch(
+        self, *, index: WorkbookIndex, proposed_pairs: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         business_literature_context = self.literature_retriever.retrieve_for_pairs(proposed_pairs)
         system_prompt = (
             "You judge relationships between existing spreadsheet metric candidates. "
@@ -278,9 +296,13 @@ class AgenticWorkbookRelationEnricher:
         response = _normalize_task_payload(
             payload=self.llm_client.chat_json(system_prompt=system_prompt, user_payload=payload),
             list_fields=("candidate_relations",),
-            alias_map={"candidate_relations": ("relations", "extracted_relations", "relation_candidates")},
+            alias_map={
+                "candidate_relations": ("relations", "extracted_relations", "relation_candidates")
+            },
         )
-        if "candidate_relations" not in response or not isinstance(response["candidate_relations"], list):
+        if "candidate_relations" not in response or not isinstance(
+            response["candidate_relations"], list
+        ):
             raise LlmJsonError("Relation batch response must include candidate_relations list.")
 
         allowed_codes = {
@@ -304,7 +326,9 @@ class AgenticWorkbookRelationEnricher:
 
         valid_relations: list[dict[str, Any]] = []
         for raw_relation in response["candidate_relations"]:
-            normalized = normalize_candidate_payload(raw_relation, default_source="llm_agentic_excel_relation")
+            normalized = normalize_candidate_payload(
+                raw_relation, default_source="llm_agentic_excel_relation"
+            )
             if normalized is None:
                 continue
             source_code = normalized["source_metric_code"]
@@ -313,7 +337,9 @@ class AgenticWorkbookRelationEnricher:
                 continue
             if tuple(sorted((source_code, target_code))) not in allowed_pairs:
                 continue
-            normalized["source_document_id"] = normalized.get("source_document_id") or index.document_id
+            normalized["source_document_id"] = (
+                normalized.get("source_document_id") or index.document_id
+            )
             normalized["evidence_type"] = normalized.get("evidence_type") or "llm_agentic"
             valid_relations.append(normalized)
         return valid_relations
@@ -342,7 +368,9 @@ def _build_workbook_index(*, workbook: Workbook, document_id: str, filename: str
                         sheet_name=sheet.title,
                         cell=formula_item["cell"],
                         formula=formula_item["formula"],
-                        references=_parse_formula_references(formula_item["formula"], current_sheet=sheet.title),
+                        references=_parse_formula_references(
+                            formula_item["formula"], current_sheet=sheet.title
+                        ),
                     )
                 )
             sheet_formula_cells += len(row_formula_cells)
@@ -379,7 +407,8 @@ def _build_workbook_index(*, workbook: Workbook, document_id: str, filename: str
             stale_ids = [
                 block_id
                 for block_id, block in active_blocks.items()
-                if block_id not in touched_block_ids and block.max_row < row_index - ROW_GAP_TOLERANCE
+                if block_id not in touched_block_ids
+                and block.max_row < row_index - ROW_GAP_TOLERANCE
             ]
             for stale_id in stale_ids:
                 finalized_blocks.append(active_blocks.pop(stale_id))
@@ -399,7 +428,13 @@ def _build_workbook_index(*, workbook: Workbook, document_id: str, filename: str
         for block in workbook_blocks:
             scan_units.extend(_build_scan_units_for_block(block=block))
 
-    return WorkbookIndex(document_id=document_id, filename=filename, sheets=sheet_indexes, scan_units=scan_units, formula_cells=formula_cells)
+    return WorkbookIndex(
+        document_id=document_id,
+        filename=filename,
+        sheets=sheet_indexes,
+        scan_units=scan_units,
+        formula_cells=formula_cells,
+    )
 
 
 def _extract_row_segments(row: tuple[Any, ...]) -> tuple[list[_RowSegment], list[dict[str, Any]]]:
@@ -490,11 +525,15 @@ def _build_scan_units_for_block(*, block: WorkbookBlock) -> list[WorkbookScanUni
     return scan_units
 
 
-def _run_scan_tools(*, workbook: Workbook, index: WorkbookIndex, scan_unit: WorkbookScanUnit) -> dict[str, Any]:
+def _run_scan_tools(
+    *, workbook: Workbook, index: WorkbookIndex, scan_unit: WorkbookScanUnit
+) -> dict[str, Any]:
     return {
         "describe_scan_unit": _tool_describe_scan_unit(index=index, scan_unit=scan_unit),
         "read_scan_unit_cells": _tool_read_scan_unit_cells(workbook=workbook, scan_unit=scan_unit),
-        "read_scan_unit_formula_cells": _tool_read_scan_unit_formula_cells(index=index, scan_unit=scan_unit),
+        "read_scan_unit_formula_cells": _tool_read_scan_unit_formula_cells(
+            index=index, scan_unit=scan_unit
+        ),
     }
 
 
@@ -561,7 +600,9 @@ def _dependency_rule_row(relation: dict[str, Any]) -> dict[str, Any]:
         "source_metric_code": relation.get("source_metric_code"),
         "target_metric_code": relation.get("target_metric_code"),
         "edge_type": relation.get("edge_type") or "driver",
-        "reason": relation.get("note") or relation.get("evidence") or "Agentic workbook enrichment.",
+        "reason": relation.get("note")
+        or relation.get("evidence")
+        or "Agentic workbook enrichment.",
         "strength": relation.get("confidence") or relation.get("score") or 0.7,
     }
 
@@ -621,7 +662,12 @@ def _looks_like_metric_row_label(label: str) -> bool:
         return False
     if normalized_label.startswith("#") or normalized_label.startswith("показатель"):
         return False
-    if normalized_label in {"абсолютные данные", "абсолютные значения", "комментарии", "прошлый мес"}:
+    if normalized_label in {
+        "абсолютные данные",
+        "абсолютные значения",
+        "комментарии",
+        "прошлый мес",
+    }:
         return False
     if "в том числе" in normalized_label or "расшифровка" in normalized_label:
         return False
@@ -664,7 +710,9 @@ def _propose_scan_unit_relation_pairs(metrics: list[dict[str, Any]]) -> list[dic
     return pairs
 
 
-def _propose_formula_relation_pairs(*, index: WorkbookIndex, metrics: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _propose_formula_relation_pairs(
+    *, index: WorkbookIndex, metrics: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     formula_by_cell = {
         (formula_cell.sheet_name, formula_cell.cell): formula_cell
         for formula_cell in index.formula_cells
@@ -679,7 +727,9 @@ def _propose_formula_relation_pairs(*, index: WorkbookIndex, metrics: list[dict[
             for source_metric in metrics:
                 if source_metric.get("code") == target_metric.get("code"):
                     continue
-                if not _metric_intersects_formula_references(source_metric, formula_cell.references):
+                if not _metric_intersects_formula_references(
+                    source_metric, formula_cell.references
+                ):
                     continue
                 pairs.append(
                     _relation_pair_payload(
@@ -695,7 +745,9 @@ def _propose_formula_relation_pairs(*, index: WorkbookIndex, metrics: list[dict[
     return pairs
 
 
-def _deterministic_formula_relations(proposed_pairs: list[dict[str, Any]], *, document_id: str) -> list[dict[str, Any]]:
+def _deterministic_formula_relations(
+    proposed_pairs: list[dict[str, Any]], *, document_id: str
+) -> list[dict[str, Any]]:
     relations = []
     for pair in proposed_pairs:
         left = pair.get("left_metric", {})
@@ -748,7 +800,12 @@ def _metric_prompt_payload(metric: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _append_unique_pairs(target: list[dict[str, Any]], candidates: list[dict[str, Any]], *, seen_pair_keys: set[tuple[str, str]]) -> None:
+def _append_unique_pairs(
+    target: list[dict[str, Any]],
+    candidates: list[dict[str, Any]],
+    *,
+    seen_pair_keys: set[tuple[str, str]],
+) -> None:
     for pair in candidates:
         left_code = str(pair.get("left_metric", {}).get("code") or "")
         right_code = str(pair.get("right_metric", {}).get("code") or "")
@@ -764,7 +821,9 @@ def _append_unique_pairs(target: list[dict[str, Any]], candidates: list[dict[str
 def _dedupe_relations(relations: list[dict[str, Any]]) -> list[dict[str, Any]]:
     deduped: dict[tuple[str, str, str, str], dict[str, Any]] = {}
     for relation in relations:
-        normalized = normalize_candidate_payload(relation, default_source=str(relation.get("source") or "agentic_excel_relation"))
+        normalized = normalize_candidate_payload(
+            relation, default_source=str(relation.get("source") or "agentic_excel_relation")
+        )
         if normalized is None:
             continue
         key = (
@@ -774,12 +833,16 @@ def _dedupe_relations(relations: list[dict[str, Any]]) -> list[dict[str, Any]]:
             str(normalized.get("lag_period") or ""),
         )
         current = deduped.get(key)
-        if current is None or float(normalized.get("confidence") or 0.0) > float(current.get("confidence") or 0.0):
+        if current is None or float(normalized.get("confidence") or 0.0) > float(
+            current.get("confidence") or 0.0
+        ):
             deduped[key] = normalized
     return list(deduped.values())
 
 
-def _metric_intersects_formula_references(metric: dict[str, Any], references: list[dict[str, Any]]) -> bool:
+def _metric_intersects_formula_references(
+    metric: dict[str, Any], references: list[dict[str, Any]]
+) -> bool:
     metric_sheet = str(metric.get("source_sheet") or "")
     value_cell_refs = [str(item) for item in metric.get("value_cell_refs", []) or [] if str(item)]
     if not metric_sheet or not value_cell_refs:
@@ -788,7 +851,9 @@ def _metric_intersects_formula_references(metric: dict[str, Any], references: li
         if str(reference.get("sheet_name") or "") != metric_sheet:
             continue
         reference_range = str(reference.get("range") or "").strip()
-        if reference_range and any(_cell_ref_in_range(cell_ref, reference_range) for cell_ref in value_cell_refs):
+        if reference_range and any(
+            _cell_ref_in_range(cell_ref, reference_range) for cell_ref in value_cell_refs
+        ):
             return True
     return False
 
@@ -802,13 +867,23 @@ def _cell_ref_in_range(cell_ref: str, range_ref: str) -> bool:
     return min_row <= row <= max_row and min_col <= col <= max_col
 
 
-def _tool_describe_scan_unit(*, index: WorkbookIndex, scan_unit: WorkbookScanUnit) -> dict[str, Any]:
-    sheet_summary = next(sheet for sheet in index.sheets if sheet.sheet_name == scan_unit.sheet_name)
+def _tool_describe_scan_unit(
+    *, index: WorkbookIndex, scan_unit: WorkbookScanUnit
+) -> dict[str, Any]:
+    sheet_summary = next(
+        sheet for sheet in index.sheets if sheet.sheet_name == scan_unit.sheet_name
+    )
     block_summary = next(block for block in sheet_summary.blocks if block.id == scan_unit.block_id)
-    return {"scan_unit": scan_unit.to_dict(), "block": block_summary.to_dict(), "sheet": sheet_summary.to_dict()}
+    return {
+        "scan_unit": scan_unit.to_dict(),
+        "block": block_summary.to_dict(),
+        "sheet": sheet_summary.to_dict(),
+    }
 
 
-def _tool_read_scan_unit_cells(*, workbook: Workbook, scan_unit: WorkbookScanUnit) -> dict[str, Any]:
+def _tool_read_scan_unit_cells(
+    *, workbook: Workbook, scan_unit: WorkbookScanUnit
+) -> dict[str, Any]:
     sheet = workbook[scan_unit.sheet_name]
     rows: list[dict[str, Any]] = []
     for row_index in range(scan_unit.min_row, scan_unit.max_row + 1):
@@ -821,18 +896,25 @@ def _tool_read_scan_unit_cells(*, workbook: Workbook, scan_unit: WorkbookScanUni
             rows.append({"row_index": row_index, "cells": sparse_cells})
     return {
         "sheet_name": scan_unit.sheet_name,
-        "range": _range_string(scan_unit.min_row, scan_unit.max_row, scan_unit.min_col, scan_unit.max_col),
+        "range": _range_string(
+            scan_unit.min_row, scan_unit.max_row, scan_unit.min_col, scan_unit.max_col
+        ),
         "rows": rows,
     }
 
 
-def _tool_read_scan_unit_formula_cells(*, index: WorkbookIndex, scan_unit: WorkbookScanUnit) -> dict[str, Any]:
+def _tool_read_scan_unit_formula_cells(
+    *, index: WorkbookIndex, scan_unit: WorkbookScanUnit
+) -> dict[str, Any]:
     formula_cells = []
     for formula_cell in index.formula_cells:
         if formula_cell.sheet_name != scan_unit.sheet_name:
             continue
         row, col = _cell_to_row_col(formula_cell.cell)
-        if scan_unit.min_row <= row <= scan_unit.max_row and scan_unit.min_col <= col <= scan_unit.max_col:
+        if (
+            scan_unit.min_row <= row <= scan_unit.max_row
+            and scan_unit.min_col <= col <= scan_unit.max_col
+        ):
             formula_cells.append(
                 {
                     "sheet_name": formula_cell.sheet_name,
@@ -844,7 +926,11 @@ def _tool_read_scan_unit_formula_cells(*, index: WorkbookIndex, scan_unit: Workb
                     ],
                 }
             )
-    return {"sheet_name": scan_unit.sheet_name, "scan_unit_id": scan_unit.id, "formula_cells": formula_cells}
+    return {
+        "sheet_name": scan_unit.sheet_name,
+        "scan_unit_id": scan_unit.id,
+        "formula_cells": formula_cells,
+    }
 
 
 def _parse_formula_references(formula_text: str, *, current_sheet: str) -> list[dict[str, Any]]:
@@ -920,7 +1006,11 @@ def _normalize_task_payload(
         normalized = merged
     field_name = normalized.get("name")
     field_value = normalized.get("value")
-    if isinstance(field_name, str) and field_name.strip() in list_fields and isinstance(field_value, list):
+    if (
+        isinstance(field_name, str)
+        and field_name.strip() in list_fields
+        and isinstance(field_value, list)
+    ):
         normalized[field_name.strip()] = field_value
     for field in list_fields:
         if isinstance(normalized.get(field), list):

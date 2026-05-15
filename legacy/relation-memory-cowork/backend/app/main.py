@@ -39,7 +39,10 @@ DEMO_PRESETS = {
         "label": "Synthetic FTL",
         "description": "Синтетическая FTL-себестоимость для быстрого demo и graph questions.",
         "files": [
-            PROJECT_ROOT / "work_data" / "synthetic_ftl_cost_experiment_v2" / "синтетическая_себестоимость_ftl_focus_fact_v2.xlsx"
+            PROJECT_ROOT
+            / "work_data"
+            / "synthetic_ftl_cost_experiment_v2"
+            / "синтетическая_себестоимость_ftl_focus_fact_v2.xlsx"
         ],
     },
     "synthetic-finance": {
@@ -47,7 +50,12 @@ DEMO_PRESETS = {
         "label": "Synthetic Finance",
         "description": "Небольшой finance demo dataset с простыми зависимостями и pending confirmations.",
         "files": [
-            PROJECT_ROOT / "backend" / "data" / "relation_memory_poc" / "demo_v2" / "finance_fact.xlsx"
+            PROJECT_ROOT
+            / "backend"
+            / "data"
+            / "relation_memory_poc"
+            / "demo_v2"
+            / "finance_fact.xlsx"
         ],
     },
     "synthetic-ftl-year": {
@@ -55,10 +63,30 @@ DEMO_PRESETS = {
         "label": "Synthetic FTL Year",
         "description": "Годовая синтетика FTL-себестоимости с государством, погодой и рынком FTL.",
         "files": [
-            PROJECT_ROOT / "backend" / "data" / "relation_memory_poc" / "synthetic_ftl_year" / "synthetic_ftl_cost_year.xlsx",
-            PROJECT_ROOT / "backend" / "data" / "relation_memory_poc" / "synthetic_ftl_year" / "synthetic_ftl_external_context_year.xlsx",
-            PROJECT_ROOT / "backend" / "data" / "relation_memory_poc" / "synthetic_ftl_year" / "synthetic_ftl_metric_dictionary.xlsx",
-            PROJECT_ROOT / "backend" / "data" / "relation_memory_poc" / "synthetic_ftl_year" / "synthetic_ftl_dependency_rules.xlsx",
+            PROJECT_ROOT
+            / "backend"
+            / "data"
+            / "relation_memory_poc"
+            / "synthetic_ftl_year"
+            / "synthetic_ftl_cost_year.xlsx",
+            PROJECT_ROOT
+            / "backend"
+            / "data"
+            / "relation_memory_poc"
+            / "synthetic_ftl_year"
+            / "synthetic_ftl_external_context_year.xlsx",
+            PROJECT_ROOT
+            / "backend"
+            / "data"
+            / "relation_memory_poc"
+            / "synthetic_ftl_year"
+            / "synthetic_ftl_metric_dictionary.xlsx",
+            PROJECT_ROOT
+            / "backend"
+            / "data"
+            / "relation_memory_poc"
+            / "synthetic_ftl_year"
+            / "synthetic_ftl_dependency_rules.xlsx",
         ],
     },
 }
@@ -122,7 +150,11 @@ def create_app(session_service: RelationMemorySessionService | None = None) -> F
             "semantic_resolver_enabled": settings.RELATION_MEMORY_OLLAMA_ENABLED,
         }
 
-    @app.post("/relation-memory/demo/presets/{preset_id}/sessions", response_model=RelationMemorySessionResponse, include_in_schema=False)
+    @app.post(
+        "/relation-memory/demo/presets/{preset_id}/sessions",
+        response_model=RelationMemorySessionResponse,
+        include_in_schema=False,
+    )
     async def create_relation_memory_demo_preset_session(preset_id: str):
         preset = DEMO_PRESETS.get(preset_id)
         if not preset:
@@ -159,8 +191,12 @@ def create_app(session_service: RelationMemorySessionService | None = None) -> F
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    @app.post("/relation-memory/sessions/{session_id}/files", response_model=RelationMemorySessionResponse)
-    async def add_files_to_relation_memory_session(session_id: str, files: list[UploadFile] = File(...)):
+    @app.post(
+        "/relation-memory/sessions/{session_id}/files", response_model=RelationMemorySessionResponse
+    )
+    async def add_files_to_relation_memory_session(
+        session_id: str, files: list[UploadFile] = File(...)
+    ):
         try:
             payloads = [
                 UploadedFilePayload(filename=file.filename or "upload", content=await file.read())
@@ -168,7 +204,9 @@ def create_app(session_service: RelationMemorySessionService | None = None) -> F
             ]
             if not payloads:
                 raise HTTPException(status_code=400, detail="At least one file is required.")
-            return app.state.relation_memory_session_service.add_files_to_session(session_id, payloads)
+            return app.state.relation_memory_session_service.add_files_to_session(
+                session_id, payloads
+            )
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         except IngestionError as exc:
@@ -183,7 +221,10 @@ def create_app(session_service: RelationMemorySessionService | None = None) -> F
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-    @app.post("/relation-memory/sessions/{session_id}/rebuild", response_model=RelationMemorySessionResponse)
+    @app.post(
+        "/relation-memory/sessions/{session_id}/rebuild",
+        response_model=RelationMemorySessionResponse,
+    )
     async def rebuild_relation_memory_session(session_id: str):
         try:
             return app.state.relation_memory_session_service.rebuild_session(session_id)
@@ -209,8 +250,12 @@ def create_app(session_service: RelationMemorySessionService | None = None) -> F
             debug_trace=debug_trace,
         )
 
-    @app.post("/relation-memory/sessions/{session_id}/chat", response_model=RelationMemoryChatResponse)
-    async def post_relation_memory_chat_message(session_id: str, request: RelationMemoryChatRequest):
+    @app.post(
+        "/relation-memory/sessions/{session_id}/chat", response_model=RelationMemoryChatResponse
+    )
+    async def post_relation_memory_chat_message(
+        session_id: str, request: RelationMemoryChatRequest
+    ):
         try:
             return app.state.relation_memory_session_service.handle_chat_message(
                 session_id,
@@ -220,7 +265,9 @@ def create_app(session_service: RelationMemorySessionService | None = None) -> F
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
     @app.post("/relation-memory/sessions/{session_id}/chat/trace")
-    async def stream_relation_memory_chat_message(session_id: str, request: RelationMemoryChatRequest):
+    async def stream_relation_memory_chat_message(
+        session_id: str, request: RelationMemoryChatRequest
+    ):
         service = app.state.relation_memory_session_service
 
         def stream_events():
@@ -253,7 +300,9 @@ def create_app(session_service: RelationMemorySessionService | None = None) -> F
 
         return StreamingResponse(stream_events(), media_type="application/x-ndjson")
 
-    @app.post("/relation-memory/sessions/{session_id}/questions", response_model=GraphQuestionResponse)
+    @app.post(
+        "/relation-memory/sessions/{session_id}/questions", response_model=GraphQuestionResponse
+    )
     async def ask_relation_memory_graph_question(session_id: str, request: GraphQuestionRequest):
         try:
             return app.state.relation_memory_session_service.answer_graph_question(
@@ -263,12 +312,17 @@ def create_app(session_service: RelationMemorySessionService | None = None) -> F
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
 
-    @app.get("/relation-memory/sessions/{session_id}/metric-candidates", response_model=MetricCandidatesResponse)
+    @app.get(
+        "/relation-memory/sessions/{session_id}/metric-candidates",
+        response_model=MetricCandidatesResponse,
+    )
     async def list_relation_memory_metric_candidates(session_id: str):
         try:
             return MetricCandidatesResponse(
                 session_id=session_id,
-                metric_candidates=app.state.relation_memory_session_service.list_metric_candidates(session_id),
+                metric_candidates=app.state.relation_memory_session_service.list_metric_candidates(
+                    session_id
+                ),
             )
         except KeyError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -315,7 +369,9 @@ def create_app(session_service: RelationMemorySessionService | None = None) -> F
 
     @app.get("/relation-memory/memory/relations", response_model=MemoryRelationsResponse)
     async def list_relation_memory_relations():
-        return MemoryRelationsResponse(relations=app.state.relation_memory_session_service.list_memory_relations())
+        return MemoryRelationsResponse(
+            relations=app.state.relation_memory_session_service.list_memory_relations()
+        )
 
     _install_swagger_file_upload_schema(app)
     return app

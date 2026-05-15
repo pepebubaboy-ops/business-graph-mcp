@@ -1,8 +1,10 @@
 # Codex prompts
 
-Общий принцип: один промпт — один маленький PR. Не давайте Codex сразу весь проект.
+Общий принцип: один промпт — один маленький PR.
+Не давайте Codex сразу весь проект.
 
-Codex умеет читать, редактировать и запускать код в своём окружении; используйте его как PR-агента, а не как генератор одного огромного файла.
+Codex умеет читать, редактировать и запускать код в своём окружении.
+Используйте его как PR-агента, а не как генератор одного огромного файла.
 
 ## Перед первым промптом
 
@@ -35,7 +37,8 @@ Constraints:
 ```text
 You are working in the business-graph-mcp repository.
 
-Goal: audit the current scaffold and the legacy relation-memory-cowork package, then create an implementation map for the migration.
+Goal: audit the current scaffold and the legacy relation-memory-cowork
+package, then create an implementation map for the migration.
 
 Tasks:
 1. Read README.md, docs/ARCHITECTURE.md, docs/PLAN.md, and legacy/relation-memory-cowork.
@@ -47,7 +50,9 @@ Tasks:
    - ingestion/session/question modules → analyzer/session/QA services
    - dependency_rules.xlsx behavior → explicit rules extractor
 4. Identify dead/demo-only code that should not be migrated.
-5. Identify risks in the legacy implementation: workspace_root/raw paths, local-only assumptions, missing file registry, evidence gaps, API/MCP duplication.
+5. Identify risks in the legacy implementation: workspace_root/raw paths,
+   local-only assumptions, missing file registry, evidence gaps,
+   API/MCP duplication.
 6. Do not change runtime code in this PR.
 7. Run tests.
 
@@ -87,7 +92,8 @@ Tasks:
 ## PR-003 — Parser abstraction and Excel parser
 
 ```text
-Goal: create file parser interfaces and an Excel parser that extracts sheets, cells, formulas, tables and dependency_rules rows.
+Goal: create file parser interfaces and an Excel parser that extracts sheets,
+cells, formulas, tables and dependency_rules rows.
 
 Tasks:
 1. Add src/business_graph_core/parsers/base.py with ParsedFile, ParsedSheet, ParsedCell, ParsedTable models.
@@ -161,7 +167,8 @@ Goal: build the first service that analyzes a package of files and saves extract
 
 Tasks:
 1. Add src/business_graph_core/services/analyzer.py.
-2. Analyzer input should be workspace_id + file paths for local MVP, but structure code so production can switch to file_ids.
+2. Analyzer input should be workspace_id + file paths for local MVP,
+   but structure code so production can switch to file_ids.
 3. For each xlsx file:
    - parse with ExcelParser
    - extract explicit rules
@@ -224,7 +231,9 @@ Tasks:
 1. Add src/business_graph_core/graph/neo4j_repo.py.
 2. Add schema constraints/indexes for BusinessNode and BusinessRelation identity.
 3. Implement upsert_node, upsert_relation, list_relations, get_summary.
-4. Store evidence refs as structured JSON or separate Evidence nodes. Prefer separate Evidence nodes if feasible in this PR; otherwise document the tradeoff.
+4. Store evidence refs as structured JSON or separate Evidence nodes.
+   Prefer separate Evidence nodes if feasible in this PR; otherwise document
+   the tradeoff.
 5. Add integration test markers, but do not make CI require Neo4j unless available.
 6. Add docs/NEO4J.md with setup and example Cypher.
 7. Run tests.
@@ -257,7 +266,8 @@ Tasks:
 ## PR-011 — Business process extraction MVP
 
 ```text
-Goal: extend beyond metric relations and extract basic process/role/system links from text files.
+Goal: extend beyond metric relations and extract basic process/role/system links
+from text files.
 
 Tasks:
 1. Add parser for .txt and .md files.
@@ -265,8 +275,10 @@ Tasks:
    - "process X depends on Y"
    - "role X owns process Y"
    - "department X uses system Y"
-   - Russian equivalents: "процесс X зависит от Y", "роль X отвечает за Y", "отдел X использует Y"
-3. Extract these as candidate relations unless the sentence is explicit enough and has a direct quote evidence.
+   - Russian equivalents: "процесс X зависит от Y", "роль X отвечает за Y",
+     "отдел X использует Y"
+3. Extract these as candidate relations unless the sentence is explicit enough
+   and has a direct quote evidence.
 4. Add tests in Russian and English.
 5. Run tests.
 ```

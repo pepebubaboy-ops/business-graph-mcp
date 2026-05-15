@@ -61,14 +61,18 @@ class DomainPack:
         self.semantic_type_patterns = dict(self.payload.get("semantic_type_patterns") or {})
         self.relation_templates = list(self.payload.get("relation_templates") or [])
         self.expected_dimensions = list(self.payload.get("expected_dimensions") or [])
-        self.external_context_suggestions = list(self.payload.get("external_context_suggestions") or [])
+        self.external_context_suggestions = list(
+            self.payload.get("external_context_suggestions") or []
+        )
         self.unit_patterns = list(self.payload.get("unit_patterns") or [])
 
     @classmethod
     def load(cls, name: str | None = None) -> "DomainPack":
         pack_name = name or "generic"
         generic_payload = read_yaml_file(DOMAIN_PACK_DIR / "generic.yaml")
-        selected_payload = read_yaml_file(DOMAIN_PACK_DIR / f"{pack_name}.yaml") if pack_name != "generic" else {}
+        selected_payload = (
+            read_yaml_file(DOMAIN_PACK_DIR / f"{pack_name}.yaml") if pack_name != "generic" else {}
+        )
         payload = cls._merge_payloads(generic_payload, selected_payload)
         return cls(pack_name, payload)
 
@@ -120,11 +124,16 @@ class DomainPack:
         if self.is_technical_label(label):
             return "technical_check"
         for semantic_type, patterns in self.semantic_type_patterns.items():
-            if any(re.search(pattern, normalized) or re.search(pattern, canonical_code) for pattern in patterns or []):
+            if any(
+                re.search(pattern, normalized) or re.search(pattern, canonical_code)
+                for pattern in patterns or []
+            ):
                 return semantic_type
         if any(re.search(pattern, normalized) for pattern in self.target_metric_patterns):
             return "target_metric"
-        if any(token in normalized for token in ("пробег", "накладн", "количество", "кол-во", "шт")):
+        if any(
+            token in normalized for token in ("пробег", "накладн", "количество", "кол-во", "шт")
+        ):
             return "denominator"
         if any(token in normalized for token in ("индекс", "ставка", "погода", "дизель")):
             return "external_context"
@@ -160,7 +169,9 @@ class OllamaMetricSemanticResolver:
             try:
                 payload = self._generate_json(self._prompt(batch, known_metric_codes))
             except Exception as exc:  # noqa: BLE001 - resolver is optional; fallback must be deterministic.
-                warnings.append(f"Ollama semantic resolver failed for batch {batch_start // self.batch_size + 1}: {exc}")
+                warnings.append(
+                    f"Ollama semantic resolver failed for batch {batch_start // self.batch_size + 1}: {exc}"
+                )
                 continue
             for item in self._items_from_payload(payload):
                 key = str(item.get("key") or "").strip()
@@ -260,8 +271,8 @@ class OllamaMetricSemanticResolver:
             "canonical_code must be stable snake_case. Prefer known_metric_codes when the label clearly matches. "
             "If uncertain, keep the baseline_code and lower confidence.\n"
             "technical checks/control rows must use semantic_type=technical_check.\n"
-            "Output schema: {\"items\":[{\"key\":\"...\",\"canonical_code\":\"...\",\"label\":\"...\","
-            "\"aliases\":[\"...\"],\"semantic_type\":\"...\",\"confidence\":0.0,\"reason\":\"short Russian explanation\"}]}.\n"
+            'Output schema: {"items":[{"key":"...","canonical_code":"...","label":"...",'
+            '"aliases":["..."],"semantic_type":"...","confidence":0.0,"reason":"short Russian explanation"}]}.\n'
             f"known_metric_codes={json.dumps(known_metric_codes, ensure_ascii=False)}\n"
             f"items={json.dumps(compact_contexts, ensure_ascii=False)}"
         )
@@ -281,7 +292,9 @@ class OllamaRelationSemanticJudge:
         self.timeout_seconds = timeout_seconds
         self.batch_size = max(1, int(batch_size or 1))
 
-    def judge_batch(self, relation_contexts: list[dict[str, Any]]) -> tuple[dict[str, dict[str, Any]], list[str]]:
+    def judge_batch(
+        self, relation_contexts: list[dict[str, Any]]
+    ) -> tuple[dict[str, dict[str, Any]], list[str]]:
         decisions: dict[str, dict[str, Any]] = {}
         warnings: list[str] = []
         for batch_start in range(0, len(relation_contexts), self.batch_size):
@@ -291,7 +304,9 @@ class OllamaRelationSemanticJudge:
             try:
                 payload = self._generate_json(self._prompt(batch))
             except Exception as exc:  # noqa: BLE001 - relation gate is optional and must fail closed.
-                warnings.append(f"Ollama relation gate failed for batch {batch_start // self.batch_size + 1}: {exc}")
+                warnings.append(
+                    f"Ollama relation gate failed for batch {batch_start // self.batch_size + 1}: {exc}"
+                )
                 continue
             for item in self._items_from_payload(payload):
                 key = str(item.get("key") or "").strip()
@@ -321,7 +336,12 @@ class OllamaRelationSemanticJudge:
                 body = json.loads(response.read().decode("utf-8"))
         except urllib.error.URLError as exc:
             raise RuntimeError(f"cannot reach Ollama at {self.base_url}: {exc}") from exc
-        text = re.sub(r"<think>.*?</think>", "", str(body.get("response") or ""), flags=re.DOTALL | re.IGNORECASE).strip()
+        text = re.sub(
+            r"<think>.*?</think>",
+            "",
+            str(body.get("response") or ""),
+            flags=re.DOTALL | re.IGNORECASE,
+        ).strip()
         try:
             return json.loads(text)
         except json.JSONDecodeError:
@@ -364,8 +384,8 @@ class OllamaRelationSemanticJudge:
             "Use keep_pending when evidence is plausible but not strong enough for automatic dependency_rules.\n"
             "Allowed decision values: approve, keep_pending, reject. "
             "Allowed edge_type values: component, driver, inverse_driver.\n"
-            "Output schema: {\"relations\":[{\"key\":\"...\",\"decision\":\"approve|keep_pending|reject\","
-            "\"edge_type\":\"component|driver|inverse_driver\",\"confidence\":0.0,\"reason\":\"short Russian explanation\"}]}.\n"
+            'Output schema: {"relations":[{"key":"...","decision":"approve|keep_pending|reject",'
+            '"edge_type":"component|driver|inverse_driver","confidence":0.0,"reason":"short Russian explanation"}]}.\n'
             f"relations={json.dumps(relation_contexts, ensure_ascii=False)}"
         )
 
@@ -381,7 +401,9 @@ class WorkbookProfiler:
         warnings: list[str] = []
         sheets: list[dict[str, Any]] = []
         try:
-            for values_sheet, formula_sheet in zip(workbook_values.worksheets, workbook_formulas.worksheets, strict=True):
+            for values_sheet, formula_sheet in zip(
+                workbook_values.worksheets, workbook_formulas.worksheets, strict=True
+            ):
                 sheet_profile = self._profile_sheet(values_sheet, formula_sheet)
                 if sheet_profile["duplicate_periods"]:
                     warnings.append(
@@ -410,7 +432,9 @@ class WorkbookProfiler:
         header_row = best_header["row_number"] if best_header else None
         period_columns = best_header["period_columns"] if best_header else []
         duplicate_periods = sorted(
-            period for period, count in Counter(item["period"] for item in period_columns).items() if count > 1
+            period
+            for period, count in Counter(item["period"] for item in period_columns).items()
+            if count > 1
         )
         candidate_metric_rows = (
             self._candidate_metric_rows(values_sheet, header_row, metric_col, period_columns)
@@ -446,7 +470,9 @@ class WorkbookProfiler:
                     continue
                 period = period_from_value(value)
                 if period:
-                    scenario, scenario_evidence = self._infer_scenario_for_period_column(sheet, row_idx, index)
+                    scenario, scenario_evidence = self._infer_scenario_for_period_column(
+                        sheet, row_idx, index
+                    )
                     period_columns.append(
                         {
                             "col": index,
@@ -467,18 +493,29 @@ class WorkbookProfiler:
                 )
         return candidates
 
-    def _infer_scenario_for_period_column(self, sheet: Any, row_idx: int, col_idx: int) -> tuple[str, str]:
+    def _infer_scenario_for_period_column(
+        self, sheet: Any, row_idx: int, col_idx: int
+    ) -> tuple[str, str]:
         matches: list[tuple[int, int, str, str]] = []
         max_row = row_idx
         for row_number in range(max(1, row_idx - 2), max_row + 1):
-            for col_number in range(max(1, col_idx - 3), min(sheet.max_column or col_idx, col_idx + 3) + 1):
+            for col_number in range(
+                max(1, col_idx - 3), min(sheet.max_column or col_idx, col_idx + 3) + 1
+            ):
                 value = sheet.cell(row_number, col_number).value
                 scenario = scenario_from_text(value)
-                if row_number == row_idx and col_number == col_idx and period_from_value(value) and not scenario:
+                if (
+                    row_number == row_idx
+                    and col_number == col_idx
+                    and period_from_value(value)
+                    and not scenario
+                ):
                     continue
                 if not scenario:
                     continue
-                if scenario in {"gb", "bm"} and not (row_number == row_idx and col_number == col_idx):
+                if scenario in {"gb", "bm"} and not (
+                    row_number == row_idx and col_number == col_idx
+                ):
                     continue
                 row_distance = abs(row_idx - row_number)
                 col_distance = abs(col_idx - col_number)
@@ -618,13 +655,19 @@ class WorkbookProfiler:
                     }
         return None
 
-    def _push_hierarchy_stack(self, hierarchy_stack: list[dict[str, Any]], metric_event: dict[str, Any]) -> None:
+    def _push_hierarchy_stack(
+        self, hierarchy_stack: list[dict[str, Any]], metric_event: dict[str, Any]
+    ) -> None:
         current_level = int(metric_event.get("layout_level") or 0)
-        while hierarchy_stack and int(hierarchy_stack[-1].get("layout_level") or 0) >= current_level:
+        while (
+            hierarchy_stack and int(hierarchy_stack[-1].get("layout_level") or 0) >= current_level
+        ):
             hierarchy_stack.pop()
         hierarchy_stack.append(metric_event)
 
-    def _infer_unit(self, sheet: Any, row_idx: int, metric_col: int, period_columns: list[dict[str, Any]]) -> str:
+    def _infer_unit(
+        self, sheet: Any, row_idx: int, metric_col: int, period_columns: list[dict[str, Any]]
+    ) -> str:
         period_cols = {item["col"] for item in period_columns}
         for col in range(metric_col + 1, min(metric_col + 4, sheet.max_column) + 1):
             if col in period_cols:
@@ -661,7 +704,9 @@ class WorkbookProfiler:
                         "referenced_row_signs": self._formula_referenced_row_signs(value),
                     }
                 )
-                formulas[-1]["referenced_rows"] = sorted({item["row"] for item in formulas[-1]["referenced_row_signs"]})
+                formulas[-1]["referenced_rows"] = sorted(
+                    {item["row"] for item in formulas[-1]["referenced_row_signs"]}
+                )
                 if len(formulas) >= 500:
                     return formulas
         return formulas
@@ -683,14 +728,18 @@ class WorkbookProfiler:
                 end_row = int(range_match.group(2))
                 for row_number in range(min(start_row, end_row), max(start_row, end_row) + 1):
                     self._add_formula_ref(refs, row_number, sign, "sum_range")
-            for cell_match in re.finditer(r"(?:'[^']+'!)?\$?[A-Z]{1,3}\$?(\d+)", arguments, flags=re.IGNORECASE):
+            for cell_match in re.finditer(
+                r"(?:'[^']+'!)?\$?[A-Z]{1,3}\$?(\d+)", arguments, flags=re.IGNORECASE
+            ):
                 before = arguments[cell_match.start() - 1] if cell_match.start() > 0 else ""
                 after = arguments[cell_match.end()] if cell_match.end() < len(arguments) else ""
                 if before == ":" or after == ":":
                     continue
                 self._add_formula_ref(refs, int(cell_match.group(1)), sign, "sum_argument")
 
-        for match in re.finditer(r"(?:'[^']+'!)?\$?[A-Z]{1,3}\$?(\d+)", formula, flags=re.IGNORECASE):
+        for match in re.finditer(
+            r"(?:'[^']+'!)?\$?[A-Z]{1,3}\$?(\d+)", formula, flags=re.IGNORECASE
+        ):
             if any(start <= match.start() < end for start, end in sum_spans):
                 continue
             before = self._previous_non_space(formula, match.start())
@@ -708,11 +757,21 @@ class WorkbookProfiler:
                 self._add_formula_ref(refs, int(match.group(1)), 0, "non_additive")
         return sorted(refs.values(), key=lambda item: (item["row"], item["mode"]))
 
-    def _add_formula_ref(self, refs: dict[int, dict[str, Any]], row_number: int, sign: int, mode: str) -> None:
-        precedence = {"sum_range": 4, "sum_argument": 4, "direct_additive": 3, "direct_subtractive": 3, "non_additive": 1}
+    def _add_formula_ref(
+        self, refs: dict[int, dict[str, Any]], row_number: int, sign: int, mode: str
+    ) -> None:
+        precedence = {
+            "sum_range": 4,
+            "sum_argument": 4,
+            "direct_additive": 3,
+            "direct_subtractive": 3,
+            "non_additive": 1,
+        }
         current = refs.get(row_number)
         candidate = {"row": row_number, "sign": sign, "mode": mode}
-        if current is None or precedence.get(mode, 0) > precedence.get(str(current.get("mode") or ""), 0):
+        if current is None or precedence.get(mode, 0) > precedence.get(
+            str(current.get("mode") or ""), 0
+        ):
             refs[row_number] = candidate
 
     def _operator_sign_before(self, formula: str, index: int) -> str:
@@ -786,7 +845,9 @@ class MetricRegistry:
                     "baseline_confidence": confidence,
                     "baseline_evidence": evidence,
                     "baseline_status": status,
-                    "baseline_semantic_type": self.domain_pack.semantic_type_for_label(raw_label, canonical_code),
+                    "baseline_semantic_type": self.domain_pack.semantic_type_for_label(
+                        raw_label, canonical_code
+                    ),
                 }
             )
         known_codes = sorted(
@@ -794,7 +855,9 @@ class MetricRegistry:
             .union(self.memory_aliases.values())
             .union(item["canonical_code"] for item in self.mapping_aliases.values())
         )
-        suggestions, warnings = self.semantic_resolver.resolve_batch(contexts, known_metric_codes=known_codes)
+        suggestions, warnings = self.semantic_resolver.resolve_batch(
+            contexts, known_metric_codes=known_codes
+        )
         self.semantic_suggestions.update(suggestions)
         self.warnings.extend(warnings)
 
@@ -812,17 +875,21 @@ class MetricRegistry:
         semantic_type = self.domain_pack.semantic_type_for_label(raw_label, canonical_code)
         aliases_extra = ""
         suggestion = self.semantic_suggestions.get(
-            self._suggestion_key(raw_label=raw_label, source_sheet=source_sheet, section_path=section_path)
+            self._suggestion_key(
+                raw_label=raw_label, source_sheet=source_sheet, section_path=section_path
+            )
         )
         if suggestion:
-            canonical_code, semantic_type, confidence, status, evidence, aliases_extra = self._merge_semantic_suggestion(
-                raw_label=raw_label,
-                baseline_code=canonical_code,
-                baseline_confidence=confidence,
-                baseline_evidence=evidence,
-                baseline_status=status,
-                baseline_semantic_type=semantic_type,
-                suggestion=suggestion,
+            canonical_code, semantic_type, confidence, status, evidence, aliases_extra = (
+                self._merge_semantic_suggestion(
+                    raw_label=raw_label,
+                    baseline_code=canonical_code,
+                    baseline_confidence=confidence,
+                    baseline_evidence=evidence,
+                    baseline_status=status,
+                    baseline_semantic_type=semantic_type,
+                    suggestion=suggestion,
+                )
             )
         if semantic_type == "technical_check":
             status = "deprecated" if status == "proposed" else status
@@ -852,13 +919,18 @@ class MetricRegistry:
             "aggregation": aggregation_for_metric(canonical_code, unit),
             "status": status,
             "confidence": round(confidence, 3),
-            "evidence": evidence if not formula_signature_value else f"{evidence}; formula={formula_signature_value}",
+            "evidence": evidence
+            if not formula_signature_value
+            else f"{evidence}; formula={formula_signature_value}",
         }
         self.candidates.setdefault(metric_id, candidate)
         return candidate
 
     def list_candidates(self) -> list[dict[str, Any]]:
-        return sorted(self.candidates.values(), key=lambda item: (item["canonical_code"], item["source_sheet"], item["raw_label"]))
+        return sorted(
+            self.candidates.values(),
+            key=lambda item: (item["canonical_code"], item["source_sheet"], item["raw_label"]),
+        )
 
     def _aliases_from_memory(self, memory_priors: list[dict[str, Any]]) -> dict[str, str]:
         aliases: dict[str, str] = {}
@@ -870,10 +942,14 @@ class MetricRegistry:
                     aliases[normalize_text(code.replace("_", " "))] = code
         return aliases
 
-    def _aliases_from_metric_mappings(self, metric_mapping_priors: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    def _aliases_from_metric_mappings(
+        self, metric_mapping_priors: list[dict[str, Any]]
+    ) -> dict[str, dict[str, Any]]:
         aliases: dict[str, dict[str, Any]] = {}
         for mapping in metric_mapping_priors:
-            canonical_code = str(mapping.get("canonical_code") or mapping.get("metric_code") or "").strip()
+            canonical_code = str(
+                mapping.get("canonical_code") or mapping.get("metric_code") or ""
+            ).strip()
             if not canonical_code:
                 continue
             alias_values = [
@@ -884,13 +960,19 @@ class MetricRegistry:
             ]
             raw_aliases = mapping.get("aliases") or []
             if isinstance(raw_aliases, str):
-                alias_values.extend(alias.strip() for alias in raw_aliases.split("|") if alias.strip())
+                alias_values.extend(
+                    alias.strip() for alias in raw_aliases.split("|") if alias.strip()
+                )
             else:
-                alias_values.extend(str(alias).strip() for alias in raw_aliases if str(alias).strip())
+                alias_values.extend(
+                    str(alias).strip() for alias in raw_aliases if str(alias).strip()
+                )
             mapping_record = {
                 "canonical_code": canonical_code,
                 "raw_label": str(mapping.get("raw_label") or mapping.get("label") or "").strip(),
-                "label": str(mapping.get("label") or mapping.get("raw_label") or canonical_code).strip(),
+                "label": str(
+                    mapping.get("label") or mapping.get("raw_label") or canonical_code
+                ).strip(),
                 "aliases": [alias for alias in alias_values if alias],
                 "semantic_type": str(mapping.get("semantic_type") or "unknown"),
             }
@@ -903,7 +985,12 @@ class MetricRegistry:
     def _baseline_mapping(self, raw_label: str) -> tuple[str, float, str, str]:
         normalized = normalize_text(raw_label)
         if normalized in self.mapping_aliases:
-            return self.mapping_aliases[normalized]["canonical_code"], 1.0, "metric_mapping_memory", "memory_applied"
+            return (
+                self.mapping_aliases[normalized]["canonical_code"],
+                1.0,
+                "metric_mapping_memory",
+                "memory_applied",
+            )
         if normalized in self.memory_aliases:
             return self.memory_aliases[normalized], 0.9, "memory_alias", "mapped"
         canonical_code, confidence, evidence = self.domain_pack.canonical_code_for_label(raw_label)
@@ -929,11 +1016,21 @@ class MetricRegistry:
             .union(self.memory_aliases.values())
             .union(item["canonical_code"] for item in self.mapping_aliases.values())
         )
-        keep_baseline_code = baseline_evidence in {"domain_alias", "memory_alias", "metric_mapping_memory"}
+        keep_baseline_code = baseline_evidence in {
+            "domain_alias",
+            "memory_alias",
+            "metric_mapping_memory",
+        }
         if baseline_evidence == "partial_domain_alias" and suggested_confidence < 0.78:
             keep_baseline_code = True
-        canonical_code = baseline_code if keep_baseline_code or suggested_confidence < 0.45 else suggested_code
-        semantic_type = suggested_semantic if suggested_semantic in SEMANTIC_TYPES and suggested_confidence >= 0.35 else baseline_semantic_type
+        canonical_code = (
+            baseline_code if keep_baseline_code or suggested_confidence < 0.45 else suggested_code
+        )
+        semantic_type = (
+            suggested_semantic
+            if suggested_semantic in SEMANTIC_TYPES and suggested_confidence >= 0.35
+            else baseline_semantic_type
+        )
         confidence = max(baseline_confidence, min(0.9, suggested_confidence))
         status = baseline_status
         if not keep_baseline_code and canonical_code in known_codes and suggested_confidence >= 0.7:
@@ -961,7 +1058,9 @@ class MetricRegistry:
 class FormulaRelationEngine:
     evidence_type = "formula"
 
-    def discover(self, profile: dict[str, Any], row_metric_map: dict[tuple[str, int], str]) -> list[dict[str, Any]]:
+    def discover(
+        self, profile: dict[str, Any], row_metric_map: dict[tuple[str, int], str]
+    ) -> list[dict[str, Any]]:
         relations: dict[tuple[str, str], dict[str, Any]] = {}
         row_profiles = self._row_profiles(profile)
         value_columns_by_sheet = self._value_columns_by_sheet(profile)
@@ -976,7 +1075,8 @@ class FormulaRelationEngine:
                 if not target:
                     continue
                 references = formula.get("referenced_row_signs") or [
-                    {"row": row_number, "sign": 0, "mode": "legacy"} for row_number in formula.get("referenced_rows", [])
+                    {"row": row_number, "sign": 0, "mode": "legacy"}
+                    for row_number in formula.get("referenced_rows", [])
                 ]
                 for reference in references:
                     source_row = int(reference.get("row") or 0)
@@ -1005,7 +1105,11 @@ class FormulaRelationEngine:
                         edge_type = "driver"
                         confidence = 0.52
                     needs_approval = not rollup_support
-                    needs_approval_reason = "" if rollup_support else "formula reference is not a clear child-to-parent rollup"
+                    needs_approval_reason = (
+                        ""
+                        if rollup_support
+                        else "formula reference is not a clear child-to-parent rollup"
+                    )
                     key = (source, target)
                     candidate = {
                         "source_metric_code": source,
@@ -1024,7 +1128,9 @@ class FormulaRelationEngine:
                         "needs_approval_reason": needs_approval_reason,
                     }
                     current = relations.get(key)
-                    if current is None or self._candidate_rank(candidate) > self._candidate_rank(current):
+                    if current is None or self._candidate_rank(candidate) > self._candidate_rank(
+                        current
+                    ):
                         relations[key] = candidate
         return list(relations.values())[:300]
 
@@ -1091,7 +1197,9 @@ class StructureRelationEngine:
     def __init__(self, domain_pack: DomainPack | None = None):
         self.domain_pack = domain_pack or DomainPack.load("generic")
 
-    def discover(self, profile: dict[str, Any], row_metric_map: dict[tuple[str, int], str]) -> list[dict[str, Any]]:
+    def discover(
+        self, profile: dict[str, Any], row_metric_map: dict[tuple[str, int], str]
+    ) -> list[dict[str, Any]]:
         relations: dict[tuple[str, str], dict[str, Any]] = {}
         rows_by_sheet_number = self._rows_by_sheet_number(profile)
         for sheet in profile.get("sheets", []):
@@ -1099,19 +1207,37 @@ class StructureRelationEngine:
             for row in sheet.get("candidate_metric_rows", []):
                 source = row_metric_map.get((sheet_name, row["row_number"]))
                 parent_row_number = row.get("parent_row_number")
-                target = row_metric_map.get((sheet_name, int(parent_row_number))) if parent_row_number else None
+                target = (
+                    row_metric_map.get((sheet_name, int(parent_row_number)))
+                    if parent_row_number
+                    else None
+                )
                 if not source or not target or source == target:
                     continue
-                parent_row = rows_by_sheet_number.get((sheet_name, int(parent_row_number))) if parent_row_number else {}
-                source_semantic = self.domain_pack.semantic_type_for_label(str(row.get("label") or ""), source)
-                target_semantic = self.domain_pack.semantic_type_for_label(str(parent_row.get("label") or ""), target)
+                parent_row = (
+                    rows_by_sheet_number.get((sheet_name, int(parent_row_number)))
+                    if parent_row_number
+                    else {}
+                )
+                source_semantic = self.domain_pack.semantic_type_for_label(
+                    str(row.get("label") or ""), source
+                )
+                target_semantic = self.domain_pack.semantic_type_for_label(
+                    str(parent_row.get("label") or ""), target
+                )
                 hierarchy_evidence = str(row.get("hierarchy_evidence") or "section_path")
                 auto_approve = self._is_strong_component_hierarchy(
                     source_semantic=source_semantic,
                     target_semantic=target_semantic,
                     hierarchy_evidence=hierarchy_evidence,
                 )
-                confidence = 0.7 if hierarchy_evidence == "layout_indent_or_outline" else 0.66 if auto_approve else 0.58
+                confidence = (
+                    0.7
+                    if hierarchy_evidence == "layout_indent_or_outline"
+                    else 0.66
+                    if auto_approve
+                    else 0.58
+                )
                 key = (source, target)
                 relations.setdefault(
                     key,
@@ -1130,12 +1256,16 @@ class StructureRelationEngine:
                         "period_window": "",
                         "source_document_id": None,
                         "needs_approval": not auto_approve,
-                        "needs_approval_reason": "" if auto_approve else "row hierarchy is structural evidence only",
+                        "needs_approval_reason": ""
+                        if auto_approve
+                        else "row hierarchy is structural evidence only",
                     },
                 )
         return list(relations.values())[:300]
 
-    def _rows_by_sheet_number(self, profile: dict[str, Any]) -> dict[tuple[str, int], dict[str, Any]]:
+    def _rows_by_sheet_number(
+        self, profile: dict[str, Any]
+    ) -> dict[tuple[str, int], dict[str, Any]]:
         rows: dict[tuple[str, int], dict[str, Any]] = {}
         for sheet in profile.get("sheets", []):
             sheet_name = sheet["sheet_name"]
@@ -1152,7 +1282,13 @@ class StructureRelationEngine:
     ) -> bool:
         if hierarchy_evidence not in {"section_marker", "layout_indent_or_outline"}:
             return False
-        if source_semantic in {"technical_check", "denominator", "business_driver", "external_context", "unknown"}:
+        if source_semantic in {
+            "technical_check",
+            "denominator",
+            "business_driver",
+            "external_context",
+            "unknown",
+        }:
             return False
         return target_semantic in {"target_metric", "cost_component", "unknown"}
 
@@ -1170,14 +1306,18 @@ class DomainRuleEngine:
             target = str(template.get("target_metric_code") or template.get("target") or "")
             if source not in available_metric_codes or target not in available_metric_codes:
                 continue
-            relation_type = str(template.get("relation_type") or template.get("edge_type") or "driver")
+            relation_type = str(
+                template.get("relation_type") or template.get("edge_type") or "driver"
+            )
             relations.append(
                 {
                     "source_metric_code": source,
                     "target_metric_code": target,
                     "relation_type": relation_type,
                     "edge_type": edge_type_for_relation(relation_type, source),
-                    "confidence": float(template.get("confidence") or template.get("strength") or 0.82),
+                    "confidence": float(
+                        template.get("confidence") or template.get("strength") or 0.82
+                    ),
                     "evidence_type": self.evidence_type,
                     "evidence": str(template.get("reason") or "Domain pack relation template."),
                     "period_window": "",
@@ -1192,7 +1332,9 @@ class DomainRuleEngine:
 class MemoryPriorEngine:
     evidence_type = "memory_prior"
 
-    def discover(self, memory_priors: list[dict[str, Any]], available_metric_codes: set[str]) -> list[dict[str, Any]]:
+    def discover(
+        self, memory_priors: list[dict[str, Any]], available_metric_codes: set[str]
+    ) -> list[dict[str, Any]]:
         relations: list[dict[str, Any]] = []
         for prior in memory_priors:
             source = str(prior.get("source_metric_code") or "")
@@ -1210,7 +1352,9 @@ class MemoryPriorEngine:
                     "edge_type": edge_type_for_relation(relation_type, source),
                     "confidence": float(prior.get("strength") or 1.0),
                     "evidence_type": self.evidence_type,
-                    "evidence": str(prior.get("reason") or prior.get("note") or "Confirmed memory prior."),
+                    "evidence": str(
+                        prior.get("reason") or prior.get("note") or "Confirmed memory prior."
+                    ),
                     "period_window": "",
                     "source_document_id": prior.get("source_document_id"),
                     "needs_approval": False,
@@ -1223,7 +1367,9 @@ class MemoryPriorEngine:
 class TextRelationEngine:
     evidence_type = "text"
 
-    def discover(self, candidate_relations: list[dict[str, Any]], available_metric_codes: set[str]) -> list[dict[str, Any]]:
+    def discover(
+        self, candidate_relations: list[dict[str, Any]], available_metric_codes: set[str]
+    ) -> list[dict[str, Any]]:
         relations: list[dict[str, Any]] = []
         for candidate in candidate_relations:
             source = str(candidate.get("source_metric_code") or candidate.get("source") or "")
@@ -1232,7 +1378,9 @@ class TextRelationEngine:
                 continue
             if source not in available_metric_codes or target not in available_metric_codes:
                 continue
-            relation_type = str(candidate.get("relation_type") or candidate.get("edge_type") or "driver")
+            relation_type = str(
+                candidate.get("relation_type") or candidate.get("edge_type") or "driver"
+            )
             relations.append(
                 {
                     "source_metric_code": source,
@@ -1265,7 +1413,9 @@ class StatisticalRelationEngine:
             for target in metric_codes:
                 if source == target:
                     continue
-                common_periods = sorted(set(metric_series[source]).intersection(metric_series[target]))
+                common_periods = sorted(
+                    set(metric_series[source]).intersection(metric_series[target])
+                )
                 if len(common_periods) < self.min_periods:
                     continue
                 values_x = [metric_series[source][period] for period in common_periods]
@@ -1274,7 +1424,9 @@ class StatisticalRelationEngine:
                 if correlation is None or abs(correlation) < 0.86:
                     continue
                 relation_type = "driver" if correlation > 0 else "inverse_driver"
-                confidence = min(0.72, 0.35 + abs(correlation) * 0.25 + min(len(common_periods), 24) / 100)
+                confidence = min(
+                    0.72, 0.35 + abs(correlation) * 0.25 + min(len(common_periods), 24) / 100
+                )
                 relations.append(
                     {
                         "source_metric_code": source,
@@ -1290,7 +1442,13 @@ class StatisticalRelationEngine:
                         "needs_approval_reason": "statistical relation needs business confirmation",
                     }
                 )
-        relations.sort(key=lambda item: (-float(item["confidence"]), item["source_metric_code"], item["target_metric_code"]))
+        relations.sort(
+            key=lambda item: (
+                -float(item["confidence"]),
+                item["source_metric_code"],
+                item["target_metric_code"],
+            )
+        )
         return relations[:100]
 
     def _pearson(self, values_x: list[float], values_y: list[float]) -> float | None:
@@ -1300,10 +1458,15 @@ class StatisticalRelationEngine:
         mean_y = sum(values_y) / len(values_y)
         centered_x = [value - mean_x for value in values_x]
         centered_y = [value - mean_y for value in values_y]
-        denominator = math.sqrt(sum(value * value for value in centered_x) * sum(value * value for value in centered_y))
+        denominator = math.sqrt(
+            sum(value * value for value in centered_x) * sum(value * value for value in centered_y)
+        )
         if denominator == 0:
             return None
-        return sum(left * right for left, right in zip(centered_x, centered_y, strict=True)) / denominator
+        return (
+            sum(left * right for left, right in zip(centered_x, centered_y, strict=True))
+            / denominator
+        )
 
 
 class RelationScorer:
@@ -1323,13 +1486,22 @@ class RelationScorer:
         relation["score"] = round(score, 3)
         if relation.get("evidence_type") == "row_structure":
             if relation.get("needs_approval"):
-                relation["needs_approval_reason"] = relation.get("needs_approval_reason") or "structural evidence is not causal"
+                relation["needs_approval_reason"] = (
+                    relation.get("needs_approval_reason") or "structural evidence is not causal"
+                )
         return relation
 
 
 class ObservationScorer:
-    def rank(self, observations: list[dict[str, Any]], metric_candidates: list[dict[str, Any]], dependencies: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        semantic_by_code = {item["canonical_code"]: item.get("semantic_type") for item in metric_candidates}
+    def rank(
+        self,
+        observations: list[dict[str, Any]],
+        metric_candidates: list[dict[str, Any]],
+        dependencies: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        semantic_by_code = {
+            item["canonical_code"]: item.get("semantic_type") for item in metric_candidates
+        }
         inbound = Counter(item["target_metric_code"] for item in dependencies)
         ranked = []
         for observation in observations:
@@ -1338,14 +1510,31 @@ class ObservationScorer:
             if semantic_type == "technical_check":
                 continue
             base_score = float(observation.get("score") or 0.0)
-            semantic_boost = 0.5 if semantic_type == "target_metric" else 0.25 if semantic_type == "cost_component" else 0.0
+            semantic_boost = (
+                0.5
+                if semantic_type == "target_metric"
+                else 0.25
+                if semantic_type == "cost_component"
+                else 0.0
+            )
             graph_boost = min(0.35, inbound[metric_code] * 0.03)
             previous_value = abs(float(observation.get("previous_value") or 0.0))
-            zero_penalty = 0.45 if previous_value < 1e-6 and abs(float(observation.get("delta_abs") or 0.0)) < 1.0 else 0.0
+            zero_penalty = (
+                0.45
+                if previous_value < 1e-6 and abs(float(observation.get("delta_abs") or 0.0)) < 1.0
+                else 0.0
+            )
             observation = dict(observation)
-            observation["noise_control_score"] = round(max(0.0, base_score + semantic_boost + graph_boost - zero_penalty), 4)
+            observation["noise_control_score"] = round(
+                max(0.0, base_score + semantic_boost + graph_boost - zero_penalty), 4
+            )
             ranked.append(observation)
-        ranked.sort(key=lambda item: (-float(item.get("noise_control_score") or 0.0), item.get("metric_code") or ""))
+        ranked.sort(
+            key=lambda item: (
+                -float(item.get("noise_control_score") or 0.0),
+                item.get("metric_code") or "",
+            )
+        )
         return ranked
 
 
@@ -1392,10 +1581,14 @@ class NormalizationAdapter:
             source_workbook=source_workbook,
         )
         metric_candidates = self.registry.list_candidates()
-        relation_candidates = self._discover_relations(profile, row_metric_map, pivot_rows, source_document_id)
+        relation_candidates = self._discover_relations(
+            profile, row_metric_map, pivot_rows, source_document_id
+        )
         relation_candidates = [self.relation_scorer.score(item) for item in relation_candidates]
         relation_candidates = self._dedupe_relations(relation_candidates)
-        relation_candidates = self._apply_relation_quality_gate(relation_candidates, metric_candidates)
+        relation_candidates = self._apply_relation_quality_gate(
+            relation_candidates, metric_candidates
+        )
         relation_candidates, relation_gate_warnings = self._apply_relation_semantic_judge(
             relation_candidates,
             metric_candidates,
@@ -1413,12 +1606,21 @@ class NormalizationAdapter:
         quality_report_path = output_root / "normalization_quality_report.json"
         generated_manifest_path = output_root / "generated_manifest.yaml"
 
-        workbook_profile_path.write_text(json.dumps(profile, ensure_ascii=False, indent=2), encoding="utf-8")
+        workbook_profile_path.write_text(
+            json.dumps(profile, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
         self._write_xlsx(normalized_facts_path, "normalized_facts", LONG_FACT_HEADERS, long_rows)
         pivot_headers = [*PIVOT_DIMENSIONS, *sorted({row["metric_code"] for row in long_rows})]
         self._write_xlsx(pivoted_facts_path, "pivoted_facts", pivot_headers, pivot_rows)
-        self._write_xlsx(metric_candidates_path, "metric_candidates", METRIC_CANDIDATE_HEADERS, metric_candidates)
-        self._write_xlsx(relation_candidates_path, "relation_candidates", RELATION_CANDIDATE_HEADERS, relation_candidates)
+        self._write_xlsx(
+            metric_candidates_path, "metric_candidates", METRIC_CANDIDATE_HEADERS, metric_candidates
+        )
+        self._write_xlsx(
+            relation_candidates_path,
+            "relation_candidates",
+            RELATION_CANDIDATE_HEADERS,
+            relation_candidates,
+        )
         dependency_rows = self._dependency_rule_rows(relation_candidates)
         self._write_xlsx(
             dependency_rules_path,
@@ -1434,9 +1636,15 @@ class NormalizationAdapter:
             relation_candidates=relation_candidates,
             warnings=warnings,
         )
-        quality_report_path.write_text(json.dumps(quality_report, ensure_ascii=False, indent=2), encoding="utf-8")
-        manifest = self._manifest_for_outputs(pivoted_facts_path, metric_candidates_path, dependency_rules_path, pivot_headers)
-        generated_manifest_path.write_text(yaml.safe_dump(manifest, sort_keys=False, allow_unicode=True), encoding="utf-8")
+        quality_report_path.write_text(
+            json.dumps(quality_report, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+        manifest = self._manifest_for_outputs(
+            pivoted_facts_path, metric_candidates_path, dependency_rules_path, pivot_headers
+        )
+        generated_manifest_path.write_text(
+            yaml.safe_dump(manifest, sort_keys=False, allow_unicode=True), encoding="utf-8"
+        )
 
         return DynamicRelationMemoryArtifacts(
             workbook_profile_path=workbook_profile_path,
@@ -1481,7 +1689,9 @@ class NormalizationAdapter:
                 sheet_name = sheet_profile["sheet_name"]
                 sheet = sheets_by_name[sheet_name]
                 header = sheet_profile["header_candidates"][0]
-                period_cols = self._period_value_columns(header["period_columns"], sheet_name, warnings)
+                period_cols = self._period_value_columns(
+                    header["period_columns"], sheet_name, warnings
+                )
                 for metric_row in sheet_profile.get("candidate_metric_rows", []):
                     if metric_row.get("is_technical") or not metric_row.get("value_count"):
                         continue
@@ -1499,7 +1709,9 @@ class NormalizationAdapter:
                     for period_col in period_cols:
                         period = str(period_col["period"])
                         scenario = str(period_col["scenario"])
-                        value = _safe_float(sheet.cell(int(metric_row["row_number"]), int(period_col["col"])).value)
+                        value = _safe_float(
+                            sheet.cell(int(metric_row["row_number"]), int(period_col["col"])).value
+                        )
                         if value is None:
                             continue
                         long_row = {
@@ -1525,7 +1737,9 @@ class NormalizationAdapter:
                                 "scenario": scenario,
                             },
                         )
-                        if metric_code in pivot_row and isinstance(pivot_row[metric_code], (int, float)):
+                        if metric_code in pivot_row and isinstance(
+                            pivot_row[metric_code], (int, float)
+                        ):
                             pivot_row[metric_code] = float(pivot_row[metric_code]) + value
                         else:
                             pivot_row[metric_code] = value
@@ -1584,9 +1798,13 @@ class NormalizationAdapter:
         for period, count in seen_periods.items():
             if count > 1:
                 scenarios = ", ".join(
-                    f"{item['period']}:{item['scenario']}@col{item['col']}" for item in result if item["period"] == period
+                    f"{item['period']}:{item['scenario']}@col{item['col']}"
+                    for item in result
+                    if item["period"] == period
                 )
-                warnings.append(f"Sheet {sheet_name}: duplicate period {period}; preserved scenario columns: {scenarios}.")
+                warnings.append(
+                    f"Sheet {sheet_name}: duplicate period {period}; preserved scenario columns: {scenarios}."
+                )
         return result
 
     def _discover_relations(
@@ -1605,11 +1823,17 @@ class NormalizationAdapter:
             *StatisticalRelationEngine().discover(self._metric_series_from_pivot(pivot_rows)),
         ]
         for relation in relations:
-            relation["source_document_id"] = relation.get("source_document_id") or source_document_id
+            relation["source_document_id"] = (
+                relation.get("source_document_id") or source_document_id
+            )
         return relations
 
-    def _metric_series_from_pivot(self, pivot_rows: list[dict[str, Any]]) -> dict[str, dict[str, float]]:
-        values_by_metric_month: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
+    def _metric_series_from_pivot(
+        self, pivot_rows: list[dict[str, Any]]
+    ) -> dict[str, dict[str, float]]:
+        values_by_metric_month: dict[str, dict[str, list[float]]] = defaultdict(
+            lambda: defaultdict(list)
+        )
         for row in pivot_rows:
             month = str(row.get("month") or "")
             if not month:
@@ -1625,11 +1849,19 @@ class NormalizationAdapter:
             aggregation = aggregation_for_metric(metric_code)
             series[metric_code] = {}
             for month, values in month_map.items():
-                series[metric_code][month] = sum(values) / len(values) if aggregation == "mean" else sum(values)
+                series[metric_code][month] = (
+                    sum(values) / len(values) if aggregation == "mean" else sum(values)
+                )
         return series
 
     def _dedupe_relations(self, relations: list[dict[str, Any]]) -> list[dict[str, Any]]:
-        precedence = {"domain_rule": 4, "formula": 3, "memory_prior": 3, "statistical": 2, "row_structure": 1}
+        precedence = {
+            "domain_rule": 4,
+            "formula": 3,
+            "memory_prior": 3,
+            "statistical": 2,
+            "row_structure": 1,
+        }
         by_key: dict[tuple[str, str, str], dict[str, Any]] = {}
         for relation in relations:
             if relation.get("rejected_by_relation_gate"):
@@ -1643,13 +1875,23 @@ class NormalizationAdapter:
             if current is None:
                 by_key[key] = relation
                 continue
-            current_rank = (precedence.get(str(current.get("evidence_type")), 0), float(current.get("score") or 0.0))
-            new_rank = (precedence.get(str(relation.get("evidence_type")), 0), float(relation.get("score") or 0.0))
+            current_rank = (
+                precedence.get(str(current.get("evidence_type")), 0),
+                float(current.get("score") or 0.0),
+            )
+            new_rank = (
+                precedence.get(str(relation.get("evidence_type")), 0),
+                float(relation.get("score") or 0.0),
+            )
             if new_rank > current_rank:
                 by_key[key] = relation
         return sorted(
             by_key.values(),
-            key=lambda item: (-float(item.get("score") or 0.0), item["source_metric_code"], item["target_metric_code"]),
+            key=lambda item: (
+                -float(item.get("score") or 0.0),
+                item["source_metric_code"],
+                item["target_metric_code"],
+            ),
         )
 
     def _apply_relation_quality_gate(
@@ -1658,7 +1900,9 @@ class NormalizationAdapter:
         metric_candidates: list[dict[str, Any]],
     ) -> list[dict[str, Any]]:
         semantic_by_code = self._metric_semantics(metric_candidates)
-        gated = [self._gate_single_relation(dict(relation), semantic_by_code) for relation in relations]
+        gated = [
+            self._gate_single_relation(dict(relation), semantic_by_code) for relation in relations
+        ]
         return self._guard_reciprocal_component_cycles(gated, semantic_by_code)
 
     def _metric_semantics(self, metric_candidates: list[dict[str, Any]]) -> dict[str, str]:
@@ -1682,7 +1926,9 @@ class NormalizationAdapter:
                 result[code] = semantic
         return result
 
-    def _gate_single_relation(self, relation: dict[str, Any], semantic_by_code: dict[str, str]) -> dict[str, Any]:
+    def _gate_single_relation(
+        self, relation: dict[str, Any], semantic_by_code: dict[str, str]
+    ) -> dict[str, Any]:
         evidence_type = str(relation.get("evidence_type") or "")
         if evidence_type in {"domain_rule", "memory_prior"}:
             return relation
@@ -1695,15 +1941,31 @@ class NormalizationAdapter:
         if relation.get("edge_type") != "component":
             return relation
         reason = ""
-        if target_semantic in {"technical_check", "denominator", "business_driver", "external_context"}:
+        if target_semantic in {
+            "technical_check",
+            "denominator",
+            "business_driver",
+            "external_context",
+        }:
             reason = f"component target semantic_type={target_semantic} is not a rollup metric"
-        elif source_semantic == "target_metric" and target_semantic in {"cost_component", "denominator", "business_driver"}:
+        elif source_semantic == "target_metric" and target_semantic in {
+            "cost_component",
+            "denominator",
+            "business_driver",
+        }:
             reason = "component direction contradicts metric semantics"
-        elif source_semantic in {"denominator", "business_driver", "external_context"} and target_semantic == "cost_component":
-            reason = "driver or denominator evidence should not be auto-approved as a cost component"
+        elif (
+            source_semantic in {"denominator", "business_driver", "external_context"}
+            and target_semantic == "cost_component"
+        ):
+            reason = (
+                "driver or denominator evidence should not be auto-approved as a cost component"
+            )
         if reason:
             relation["needs_approval"] = True
-            relation["needs_approval_reason"] = _append_reason(relation.get("needs_approval_reason"), reason)
+            relation["needs_approval_reason"] = _append_reason(
+                relation.get("needs_approval_reason"), reason
+            )
             relation["confidence"] = min(float(relation.get("confidence") or 0.0), 0.52)
         return relation
 
@@ -1722,10 +1984,16 @@ class NormalizationAdapter:
                 continue
             approved_components[tuple(sorted((source, target)))].append(relation)
         for reciprocal_group in approved_components.values():
-            directions = {(item.get("source_metric_code"), item.get("target_metric_code")) for item in reciprocal_group}
+            directions = {
+                (item.get("source_metric_code"), item.get("target_metric_code"))
+                for item in reciprocal_group
+            }
             if len(directions) < 2:
                 continue
-            keep = max(reciprocal_group, key=lambda item: self._relation_direction_rank(item, semantic_by_code))
+            keep = max(
+                reciprocal_group,
+                key=lambda item: self._relation_direction_rank(item, semantic_by_code),
+            )
             for relation in reciprocal_group:
                 if relation is keep:
                     continue
@@ -1737,14 +2005,30 @@ class NormalizationAdapter:
                 relation["confidence"] = min(float(relation.get("confidence") or 0.0), 0.52)
         return relations
 
-    def _relation_direction_rank(self, relation: dict[str, Any], semantic_by_code: dict[str, str]) -> tuple[int, int, float]:
-        evidence_priority = {"domain_rule": 5, "memory_prior": 4, "formula": 3, "row_structure": 2, "statistical": 1}
-        target_priority = {"target_metric": 5, "cost_component": 4, "unknown": 3, "business_driver": 2, "denominator": 2}
+    def _relation_direction_rank(
+        self, relation: dict[str, Any], semantic_by_code: dict[str, str]
+    ) -> tuple[int, int, float]:
+        evidence_priority = {
+            "domain_rule": 5,
+            "memory_prior": 4,
+            "formula": 3,
+            "row_structure": 2,
+            "statistical": 1,
+        }
+        target_priority = {
+            "target_metric": 5,
+            "cost_component": 4,
+            "unknown": 3,
+            "business_driver": 2,
+            "denominator": 2,
+        }
         source = str(relation.get("source_metric_code") or "")
         target = str(relation.get("target_metric_code") or "")
         source_semantic = semantic_by_code.get(source, "unknown")
         target_semantic = semantic_by_code.get(target, "unknown")
-        source_penalty = -2 if source_semantic == "target_metric" and target_semantic != "target_metric" else 0
+        source_penalty = (
+            -2 if source_semantic == "target_metric" and target_semantic != "target_metric" else 0
+        )
         return (
             evidence_priority.get(str(relation.get("evidence_type") or ""), 0),
             target_priority.get(target_semantic, 0) + source_penalty,
@@ -1762,7 +2046,9 @@ class NormalizationAdapter:
         if not contexts:
             return relations, []
         decisions, warnings = self.relation_semantic_judge.judge_batch(contexts)
-        relation_by_key = {str(relation.get("_relation_gate_key")): relation for relation in relations}
+        relation_by_key = {
+            str(relation.get("_relation_gate_key")): relation for relation in relations
+        }
         for key, decision in decisions.items():
             relation = relation_by_key.get(key)
             if not relation:
@@ -1778,7 +2064,12 @@ class NormalizationAdapter:
         metric_info = self._metric_info_by_code(metric_candidates)
         contexts: list[dict[str, Any]] = []
         for index, relation in enumerate(relations):
-            if relation.get("evidence_type") not in {"formula", "row_structure", "statistical", "text"}:
+            if relation.get("evidence_type") not in {
+                "formula",
+                "row_structure",
+                "statistical",
+                "text",
+            }:
                 continue
             key = f"rel_{index}"
             relation["_relation_gate_key"] = key
@@ -1789,10 +2080,14 @@ class NormalizationAdapter:
                     "key": key,
                     "source_metric_code": source,
                     "source_label": metric_info.get(source, {}).get("label", source),
-                    "source_semantic_type": metric_info.get(source, {}).get("semantic_type", "unknown"),
+                    "source_semantic_type": metric_info.get(source, {}).get(
+                        "semantic_type", "unknown"
+                    ),
                     "target_metric_code": target,
                     "target_label": metric_info.get(target, {}).get("label", target),
-                    "target_semantic_type": metric_info.get(target, {}).get("semantic_type", "unknown"),
+                    "target_semantic_type": metric_info.get(target, {}).get(
+                        "semantic_type", "unknown"
+                    ),
                     "edge_type": relation.get("edge_type"),
                     "relation_type": relation.get("relation_type"),
                     "evidence_type": relation.get("evidence_type"),
@@ -1812,7 +2107,9 @@ class NormalizationAdapter:
         )
         return contexts[:RELATION_GATE_CONTEXT_LIMIT]
 
-    def _metric_info_by_code(self, metric_candidates: list[dict[str, Any]]) -> dict[str, dict[str, str]]:
+    def _metric_info_by_code(
+        self, metric_candidates: list[dict[str, Any]]
+    ) -> dict[str, dict[str, str]]:
         result: dict[str, dict[str, str]] = {}
         for item in metric_candidates:
             code = str(item.get("canonical_code") or item.get("metric_code") or "")
@@ -1824,7 +2121,9 @@ class NormalizationAdapter:
             }
         return result
 
-    def _apply_relation_gate_decision(self, relation: dict[str, Any], decision: dict[str, Any]) -> None:
+    def _apply_relation_gate_decision(
+        self, relation: dict[str, Any], decision: dict[str, Any]
+    ) -> None:
         gate_decision = str(decision.get("decision") or "keep_pending")
         relation["relation_gate_decision"] = gate_decision
         relation["relation_gate_model"] = str(decision.get("model") or "")
@@ -1864,7 +2163,8 @@ class NormalizationAdapter:
                 {
                     "source_metric_code": relation["source_metric_code"],
                     "target_metric_code": relation["target_metric_code"],
-                    "edge_type": relation.get("edge_type") or edge_type_for_relation(str(relation.get("relation_type") or "driver")),
+                    "edge_type": relation.get("edge_type")
+                    or edge_type_for_relation(str(relation.get("relation_type") or "driver")),
                     "reason": f"{relation.get('evidence_type')}: {relation.get('evidence')}",
                     "strength": relation.get("score") or relation.get("confidence") or 0.5,
                 }
@@ -1881,8 +2181,12 @@ class NormalizationAdapter:
         relation_candidates: list[dict[str, Any]],
         warnings: list[str],
     ) -> dict[str, Any]:
-        technical_candidates = [item for item in metric_candidates if item.get("semantic_type") == "technical_check"]
-        duplicate_period_count = sum(len(sheet.get("duplicate_periods") or []) for sheet in profile.get("sheets", []))
+        technical_candidates = [
+            item for item in metric_candidates if item.get("semantic_type") == "technical_check"
+        ]
+        duplicate_period_count = sum(
+            len(sheet.get("duplicate_periods") or []) for sheet in profile.get("sheets", [])
+        )
         return {
             "workbook": profile.get("workbook_name"),
             "sheet_count": len(profile.get("sheets", [])),
@@ -1892,7 +2196,9 @@ class NormalizationAdapter:
             "relation_candidate_count": len(relation_candidates),
             "technical_metric_candidate_count": len(technical_candidates),
             "duplicate_period_warning_count": duplicate_period_count,
-            "relation_evidence_types": dict(Counter(item.get("evidence_type") for item in relation_candidates)),
+            "relation_evidence_types": dict(
+                Counter(item.get("evidence_type") for item in relation_candidates)
+            ),
             "metric_statuses": dict(Counter(item.get("status") for item in metric_candidates)),
             "warnings": [*profile.get("warnings", []), *warnings],
         }
@@ -1958,7 +2264,9 @@ class NormalizationAdapter:
         except ValueError:
             return str(path)
 
-    def _write_xlsx(self, path: Path, sheet_name: str, headers: list[str], rows: list[dict[str, Any]]) -> None:
+    def _write_xlsx(
+        self, path: Path, sheet_name: str, headers: list[str], rows: list[dict[str, Any]]
+    ) -> None:
         workbook = Workbook()
         worksheet = workbook.active
         worksheet.title = sheet_name[:31]

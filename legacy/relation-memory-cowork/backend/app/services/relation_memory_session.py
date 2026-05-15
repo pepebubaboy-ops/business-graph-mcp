@@ -26,7 +26,10 @@ from app.schemas.relation_memory import (
     RelationMemoryChatResponse,
     RelationMemorySessionResponse,
 )
-from app.services.relation_memory_agentic_enrichment import AgenticWorkbookEnrichmentResult, AgenticWorkbookRelationEnricher
+from app.services.relation_memory_agentic_enrichment import (
+    AgenticWorkbookEnrichmentResult,
+    AgenticWorkbookRelationEnricher,
+)
 from app.services.relation_memory_candidates import (
     candidate_id,
     candidate_relations_from_dependencies,
@@ -83,7 +86,10 @@ from app.services.relation_memory_question_models import (
     RUSSIAN_METRIC_DISPLAY_LABELS,
 )
 from app.services.relation_memory_questions import RelationMemoryQuestionService
-from app.services.relation_memory_user_language import RelationMemoryConversationContext, normalize_user_text
+from app.services.relation_memory_user_language import (
+    RelationMemoryConversationContext,
+    normalize_user_text,
+)
 from app.services.relation_memory_workbook_shape import (
     DIMENSION_COLUMNS,
     ROW_REPORT_RELATION_SOURCE,
@@ -133,7 +139,9 @@ class RelationMemorySessionState:
     rejected_candidate_ids: set[str] = field(default_factory=set)
     approved_relations: list[ConfirmedRelation] = field(default_factory=list)
     confirmed_relation_keys: set[tuple[str, str, str]] = field(default_factory=set)
-    conversation_context: RelationMemoryConversationContext = field(default_factory=RelationMemoryConversationContext)
+    conversation_context: RelationMemoryConversationContext = field(
+        default_factory=RelationMemoryConversationContext
+    )
     open_agent_question: dict[str, Any] | None = None
     answered_agent_question_ids: set[str] = field(default_factory=set)
     memory_facts: list[dict[str, Any]] = field(default_factory=list)
@@ -170,7 +178,9 @@ class RelationMemorySessionService:
         self.sessions[session_id] = state
         return self._session_response(state)
 
-    def add_files_to_session(self, session_id: str, files: list[UploadedFilePayload]) -> RelationMemorySessionResponse:
+    def add_files_to_session(
+        self, session_id: str, files: list[UploadedFilePayload]
+    ) -> RelationMemorySessionResponse:
         previous_state = self._get_session(session_id)
         incoming_bundle = ingest_file_payloads(files)
         combined_bundle = self._merge_document_bundles(previous_state.bundle, incoming_bundle)
@@ -217,7 +227,9 @@ class RelationMemorySessionService:
                 title="OpenAgentQuestion",
                 summary="Сообщение распознано как ответ на открытый вопрос агента; сохраняю только как candidate/memory fact.",
                 details={
-                    "created_candidates": [self._candidate_trace_payload(candidate) for candidate in created],
+                    "created_candidates": [
+                        self._candidate_trace_payload(candidate) for candidate in created
+                    ],
                     "warnings": warnings,
                     "assistant_message": assistant_message,
                 },
@@ -271,7 +283,11 @@ class RelationMemorySessionService:
                 stage="open_session_question",
                 title="FallbackSessionAnswer",
                 summary="Relation Memory graph-QA не смог обработать вопрос; отвечаю по состоянию текущей сессии.",
-                details={"message": message, "graph_intent": graph_answer.intent, "warnings": graph_answer.warnings},
+                details={
+                    "message": message,
+                    "graph_intent": graph_answer.intent,
+                    "warnings": graph_answer.warnings,
+                },
             )
             return self._answer_open_session_question(state, message), [], []
         self._record_session_trace(
@@ -308,7 +324,9 @@ class RelationMemorySessionService:
             summary=f"LLM-нормализация вернула {len(result.candidate_relations)} candidate relation(s); создано {len(created)}.",
             details={
                 "raw_candidate_count": len(result.candidate_relations),
-                "created_candidates": [self._candidate_trace_payload(candidate) for candidate in created],
+                "created_candidates": [
+                    self._candidate_trace_payload(candidate) for candidate in created
+                ],
                 "warnings": warnings,
                 "assistant_message": assistant_message,
             },
@@ -415,10 +433,9 @@ class RelationMemorySessionService:
         warnings: list[str] = []
         facts: list[dict[str, Any]] = []
 
-        deterministic_candidate = (
-            self._candidate_from_open_question_confirmation(state, open_question, message)
-            or self._candidate_from_open_question_freeform_answer(state, open_question, message)
-        )
+        deterministic_candidate = self._candidate_from_open_question_confirmation(
+            state, open_question, message
+        ) or self._candidate_from_open_question_freeform_answer(state, open_question, message)
         if deterministic_candidate is not None:
             stored = self._add_candidate_if_new(state, deterministic_candidate)
             if stored is not None:
@@ -440,7 +457,9 @@ class RelationMemorySessionService:
             )
         warnings.extend(result.warnings)
         for fact_payload in result.memory_facts:
-            facts.append(self._memory_fact_from_user_answer(state, open_question, message, fact_payload))
+            facts.append(
+                self._memory_fact_from_user_answer(state, open_question, message, fact_payload)
+            )
         if not facts:
             facts.append(self._memory_fact_from_user_answer(state, open_question, message, {}))
         for fact in facts:
@@ -460,10 +479,16 @@ class RelationMemorySessionService:
             )
             ensure_external_context_metric_label(
                 state.metric_map,
-                str(raw_candidate.get("target_metric_code") or open_question.get("target_metric_code") or ""),
+                str(
+                    raw_candidate.get("target_metric_code")
+                    or open_question.get("target_metric_code")
+                    or ""
+                ),
                 str(raw_candidate.get("target_label") or ""),
             )
-            if not raw_candidate.get("target_metric_code") and open_question.get("target_metric_code"):
+            if not raw_candidate.get("target_metric_code") and open_question.get(
+                "target_metric_code"
+            ):
                 raw_candidate["target_metric_code"] = open_question.get("target_metric_code")
             candidate = self._candidate_from_raw(raw_candidate, state, source="user_answer")
             if candidate:
@@ -521,19 +546,21 @@ class RelationMemorySessionService:
     ) -> CandidateRelation | None:
         if not self._is_affirmative_answer(message):
             return None
-        hypothesis_ids = [str(item) for item in open_question.get("hypothesis_ids") or [] if str(item)]
+        hypothesis_ids = [
+            str(item) for item in open_question.get("hypothesis_ids") or [] if str(item)
+        ]
         if not hypothesis_ids:
             return None
         hypotheses = {
-            str(item.get("id") or ""): item
-            for item in state.snapshot.hypotheses
-            if item.get("id")
+            str(item.get("id") or ""): item for item in state.snapshot.hypotheses if item.get("id")
         }
         hypothesis = hypotheses.get(hypothesis_ids[0])
         if not hypothesis:
             return None
         source = str(hypothesis.get("source_metric_code") or "")
-        target = str(hypothesis.get("target_metric_code") or open_question.get("target_metric_code") or "")
+        target = str(
+            hypothesis.get("target_metric_code") or open_question.get("target_metric_code") or ""
+        )
         if not source or not target:
             return None
         raw_candidate = {
@@ -596,7 +623,9 @@ class RelationMemorySessionService:
     ) -> tuple[str, str] | None:
         text = str(message or "").strip()
         normalized = text.lower()
-        if "тариф" in normalized and ("платн" in normalized or "дорог" in normalized or "оператор" in normalized):
+        if "тариф" in normalized and (
+            "платн" in normalized or "дорог" in normalized or "оператор" in normalized
+        ):
             return "toll_tariff_policy", "Тарифная политика операторов платных дорог"
         if "маршрут" in normalized and "платн" in normalized:
             return "paid_road_route_share", "Доля маршрутов по платным дорогам"
@@ -645,7 +674,9 @@ class RelationMemorySessionService:
 
     def _is_affirmative_answer(self, message: str) -> bool:
         normalized = str(message or "").strip().lower()
-        return bool(re.match(r"^(да|верно|подтверждаю|согласен|согласна|именно|скорее да)\b", normalized))
+        return bool(
+            re.match(r"^(да|верно|подтверждаю|согласен|согласна|именно|скорее да)\b", normalized)
+        )
 
     def _coerce_edge_type(self, value: Any) -> str:
         edge_type = str(value or "driver").strip()
@@ -660,11 +691,7 @@ class RelationMemorySessionService:
         message: str,
         payload: dict[str, Any],
     ) -> dict[str, Any]:
-        metric_codes = [
-            str(item)
-            for item in payload.get("metric_codes", []) or []
-            if str(item)
-        ]
+        metric_codes = [str(item) for item in payload.get("metric_codes", []) or [] if str(item)]
         target = str(open_question.get("target_metric_code") or "")
         if target and target not in metric_codes:
             metric_codes.append(target)
@@ -711,12 +738,18 @@ class RelationMemorySessionService:
                     *[str(item or "") for item in metric.get("source_labels") or []],
                     *[str(item or "") for item in metric.get("approved_aliases") or []],
                 ]
-                for candidate_label in dict.fromkeys(label.strip() for label in candidate_labels if label.strip()):
+                for candidate_label in dict.fromkeys(
+                    label.strip() for label in candidate_labels if label.strip()
+                ):
                     prompt = self._replace_prompt_label(prompt, candidate_label, display_label)
             question["prompt"] = prompt
 
     def _replace_prompt_label(self, prompt: str, candidate_label: str, display_label: str) -> str:
-        if not candidate_label or candidate_label == display_label or contains_cyrillic(candidate_label):
+        if (
+            not candidate_label
+            or candidate_label == display_label
+            or contains_cyrillic(candidate_label)
+        ):
             return prompt
         prompt = prompt.replace(f"«{candidate_label}»", f"«{display_label}»")
         if " " in candidate_label or any(char.isupper() for char in candidate_label):
@@ -752,7 +785,9 @@ class RelationMemorySessionService:
                     f"{evidence_suffix}"
                 )
             else:
-                parts.append(f"Запомнил ответ и подготовил {len(created)} кандидатных связей для проверки.")
+                parts.append(
+                    f"Запомнил ответ и подготовил {len(created)} кандидатных связей для проверки."
+                )
         elif facts:
             parts.append("Запомнил ответ как бизнес-контекст для этой relation-memory сессии.")
         else:
@@ -763,19 +798,23 @@ class RelationMemorySessionService:
             parts.append("Открытых уточняющих вопросов больше нет.")
         return " ".join(part for part in parts if part).strip()
 
-    def _answer_open_session_question(self, state: RelationMemorySessionState, question: str) -> str:
+    def _answer_open_session_question(
+        self, state: RelationMemorySessionState, question: str
+    ) -> str:
         fallback_answer = self._fallback_open_question_answer(state, question)
         if self._is_relation_source_question(question):
             return fallback_answer
         if not settings.RELATION_MEMORY_LLM_ANSWER_ENABLED:
             return fallback_answer
 
-        client = RelationMemoryLlmClient(timeout_seconds=int(settings.RELATION_MEMORY_LLM_ANSWER_TIMEOUT_SECONDS))
+        client = RelationMemoryLlmClient(
+            timeout_seconds=int(settings.RELATION_MEMORY_LLM_ANSWER_TIMEOUT_SECONDS)
+        )
         system_prompt = (
             "Ты отвечаешь на свободные вопросы бизнес-пользователя по текущей relation-memory сессии. "
             "Используй только факты из payload: documents, metrics, dependencies, observations, hypotheses, pending_confirmations. "
             "Не выдумывай новые метрики, цифры или связи. Если вопрос не покрыт данными, скажи это коротко и предложи, "
-            "какой вопрос можно задать по текущему графу. Верни strict JSON only: {\"answer\": \"...\"}."
+            'какой вопрос можно задать по текущему графу. Верни strict JSON only: {"answer": "..."}.'
         )
         try:
             payload = client.chat_json(
@@ -795,8 +834,7 @@ class RelationMemorySessionService:
 
     def _open_question_context(self, state: RelationMemorySessionState) -> dict[str, Any]:
         metric_lookup = {
-            code: display_metric_label(code, metric)
-            for code, metric in state.metric_map.items()
+            code: display_metric_label(code, metric) for code, metric in state.metric_map.items()
         }
         dependencies = []
         for item in sorted(
@@ -827,9 +865,13 @@ class RelationMemorySessionService:
             pending.append(
                 {
                     "source_metric_code": item.source_metric_code,
-                    "source_label": metric_lookup.get(item.source_metric_code, item.source_metric_code),
+                    "source_label": metric_lookup.get(
+                        item.source_metric_code, item.source_metric_code
+                    ),
                     "target_metric_code": item.target_metric_code,
-                    "target_label": metric_lookup.get(item.target_metric_code, item.target_metric_code),
+                    "target_label": metric_lookup.get(
+                        item.target_metric_code, item.target_metric_code
+                    ),
                     "edge_type": item.edge_type,
                     "score": item.score or item.confidence,
                     "reason": item.needs_approval_reason or item.note or item.evidence,
@@ -854,7 +896,9 @@ class RelationMemorySessionService:
             "warnings": state.warnings[:12],
         }
 
-    def _fallback_open_question_answer(self, state: RelationMemorySessionState, question: str) -> str:
+    def _fallback_open_question_answer(
+        self, state: RelationMemorySessionState, question: str
+    ) -> str:
         relation_count = len(state.snapshot.dependencies)
         pending_count = len(state.pending_confirmations)
         metric_count = len(state.metric_map)
@@ -863,7 +907,8 @@ class RelationMemorySessionService:
             return (
                 "Связи в этой demo-сессии берутся из загруженных таблиц зависимостей, найденных наблюдений и гипотез, "
                 "подтвержденной памяти и ответов пользователя на уточняющие вопросы. LLM может нормализовать вопрос "
-                "или предложить кандидатную связь, но такая связь остается на проверке, пока пользователь явно ее не подтвердит."
+                "или предложить кандидатную связь, но такая связь остается на проверке, "
+                "пока пользователь явно ее не подтвердит."
             )
         if any(token in question_text.lower() for token in ("связ", "relation", "edge")):
             examples = []
@@ -875,7 +920,9 @@ class RelationMemorySessionService:
                 source = str(item.get("source_metric_code") or "")
                 target = str(item.get("target_metric_code") or "")
                 if source and target:
-                    examples.append(f"«{metric_lookup.get(source, source)}» -> «{metric_lookup.get(target, target)}»")
+                    examples.append(
+                        f"«{metric_lookup.get(source, source)}» -> «{metric_lookup.get(target, target)}»"
+                    )
             suffix = f" Например: {'; '.join(examples)}." if examples else ""
             return f"В графе есть {relation_count} связей и {pending_count} связей на проверке.{suffix}"
         return (
@@ -930,7 +977,9 @@ class RelationMemorySessionService:
     ) -> RelationMemoryChatResponse:
         state = self._get_session(session_id)
         state.chat_history.append(self._conversation_message("user", message))
-        assistant_message, created, warnings = self.handle_message(session_id, message, trace_sink=trace_sink)
+        assistant_message, created, warnings = self.handle_message(
+            session_id, message, trace_sink=trace_sink
+        )
         assistant_message = self._humanize_chat_message(
             state=state,
             assistant_message=assistant_message,
@@ -1011,7 +1060,9 @@ class RelationMemorySessionService:
             ensure_question_metric(metric_map, str(row.get("target_metric_code") or ""))
         return metric_map
 
-    def _memory_prior_dependency_rows(self, state: RelationMemorySessionState) -> list[dict[str, Any]]:
+    def _memory_prior_dependency_rows(
+        self, state: RelationMemorySessionState
+    ) -> list[dict[str, Any]]:
         rows = []
         for prior in self._relation_memory_priors(state):
             source = str(prior.get("source_metric_code") or "")
@@ -1024,14 +1075,25 @@ class RelationMemorySessionService:
                     "source_metric_code": source,
                     "target_metric_code": target,
                     "edge_type": str(prior.get("edge_type") or "driver"),
-                    "reason": str(prior.get("note") or prior.get("reason") or "Связь из подтвержденной памяти.").strip(),
-                    "strength": float(prior.get("strength") or prior.get("score") or prior.get("confidence") or 1.0),
+                    "reason": str(
+                        prior.get("note")
+                        or prior.get("reason")
+                        or "Связь из подтвержденной памяти."
+                    ).strip(),
+                    "strength": float(
+                        prior.get("strength")
+                        or prior.get("score")
+                        or prior.get("confidence")
+                        or 1.0
+                    ),
                     "source": str(prior.get("source") or "memory_prior"),
                 }
             )
         return rows
 
-    def confirm_candidate(self, session_id: str, candidate_id: str, decision: str) -> ConfirmationResponse:
+    def confirm_candidate(
+        self, session_id: str, candidate_id: str, decision: str
+    ) -> ConfirmationResponse:
         if decision not in ALLOWED_CONFIRMATION_DECISIONS:
             raise ValueError(f"Unsupported confirmation decision: {decision}")
         state = self._get_session(session_id)
@@ -1231,10 +1293,15 @@ class RelationMemorySessionService:
             metric_candidates={
                 candidate.id: candidate
                 for candidate in metric_candidates
-                if not previous_state or candidate.id not in previous_state.rejected_metric_candidate_ids
+                if not previous_state
+                or candidate.id not in previous_state.rejected_metric_candidate_ids
             },
-            rejected_metric_candidate_ids=set(previous_state.rejected_metric_candidate_ids) if previous_state else set(),
-            rejected_candidate_ids=set(previous_state.rejected_candidate_ids) if previous_state else set(),
+            rejected_metric_candidate_ids=set(previous_state.rejected_metric_candidate_ids)
+            if previous_state
+            else set(),
+            rejected_candidate_ids=set(previous_state.rejected_candidate_ids)
+            if previous_state
+            else set(),
             approved_relations=list(previous_state.approved_relations) if previous_state else [],
             confirmed_relation_keys=relation_key_set(memory_priors),
             conversation_context=(
@@ -1248,9 +1315,7 @@ class RelationMemorySessionService:
                 else None
             ),
             answered_agent_question_ids=(
-                set(previous_state.answered_agent_question_ids)
-                if previous_state
-                else set()
+                set(previous_state.answered_agent_question_ids) if previous_state else set()
             ),
             memory_facts=copy.deepcopy(previous_state.memory_facts) if previous_state else [],
             chat_history=list(previous_state.chat_history) if previous_state else [],
@@ -1301,7 +1366,9 @@ class RelationMemorySessionService:
         return RelationMemorySessionResponse(
             session_id=state.id,
             assistant_message=state.assistant_message,
-            documents=[DocumentSummary(**document.to_dict()) for document in state.bundle.documents],
+            documents=[
+                DocumentSummary(**document.to_dict()) for document in state.bundle.documents
+            ],
             document_parse_statuses=list(state.document_parse_statuses),
             metrics=metric_response_items(state.metric_map),
             observations=state.snapshot.observations,
@@ -1315,7 +1382,9 @@ class RelationMemorySessionService:
             warnings=state.warnings,
         )
 
-    def _merge_document_bundles(self, current: DocumentBundle, incoming: DocumentBundle) -> DocumentBundle:
+    def _merge_document_bundles(
+        self, current: DocumentBundle, incoming: DocumentBundle
+    ) -> DocumentBundle:
         return DocumentBundle(
             documents=[*current.documents, *incoming.documents],
             text_chunks=[*current.text_chunks, *incoming.text_chunks],
@@ -1379,11 +1448,20 @@ class RelationMemorySessionService:
             )
         text = str(assistant_message or "").strip()
         if "Не смог надежно разобрать ответ LLM" in text:
-            return "Пока не могу уверенно разобрать это сообщение. Сформулируйте связь проще: что на что влияет и почему."
+            return (
+                "Пока не могу уверенно разобрать это сообщение. "
+                "Сформулируйте связь проще: что на что влияет и почему."
+            )
         if text.startswith("Не нашел новых связей"):
-            return "Пока не вижу новой связи в сообщении. Можно спросить про влияние метрики или описать связь между двумя показателями."
+            return (
+                "Пока не вижу новой связи в сообщении. "
+                "Можно спросить про влияние метрики или описать связь между двумя показателями."
+            )
         if self._looks_like_english_assistant_text(text):
-            return "Пока не вижу новой связи в сообщении. Можно спросить про влияние метрики или описать связь между двумя показателями."
+            return (
+                "Пока не вижу новой связи в сообщении. "
+                "Можно спросить про влияние метрики или описать связь между двумя показателями."
+            )
         return text
 
     def _create_external_context_candidates(
@@ -1400,7 +1478,9 @@ class RelationMemorySessionService:
                 "target_metric_code": row.get("target_metric_code"),
                 "edge_type": row.get("edge_type") or "driver",
                 "note": row.get("reason") or row.get("first_reason") or "",
-                "evidence": row.get("reason") or row.get("first_reason") or "External context suggestion",
+                "evidence": row.get("reason")
+                or row.get("first_reason")
+                or "External context suggestion",
                 "evidence_type": "external_context",
                 "confidence": row.get("confidence") or row.get("score") or 0.5,
                 "score": row.get("score") or row.get("confidence") or 0.5,
@@ -1417,7 +1497,9 @@ class RelationMemorySessionService:
                 str(row.get("target_metric_code") or ""),
                 str(row.get("target_label") or ""),
             )
-            candidate = self._candidate_from_raw(raw_candidate, state, source="llm_external_context")
+            candidate = self._candidate_from_raw(
+                raw_candidate, state, source="llm_external_context"
+            )
             if candidate is None:
                 continue
             stored = self._add_candidate_if_new(state, candidate)
@@ -1430,7 +1512,10 @@ class RelationMemorySessionService:
         if not text:
             return False
         lowered = text.lower()
-        if any(marker in lowered for marker in ("assuming", "correcting", "candidate relationships", "here are")):
+        if any(
+            marker in lowered
+            for marker in ("assuming", "correcting", "candidate relationships", "here are")
+        ):
             return True
         latin = len(re.findall(r"[A-Za-z]", text))
         cyrillic = len(re.findall(r"[А-Яа-яЁё]", text))
@@ -1466,14 +1551,23 @@ class RelationMemorySessionService:
         bundle: DocumentBundle,
         memory_priors: list[dict[str, Any]],
         metric_mapping_priors: list[dict[str, Any]],
-    ) -> tuple[RelationMemorySnapshot, list[MetricCandidate], list[dict[str, Any]], list[str], list[DocumentParseStatus], set[str]]:
+    ) -> tuple[
+        RelationMemorySnapshot,
+        list[MetricCandidate],
+        list[dict[str, Any]],
+        list[str],
+        list[DocumentParseStatus],
+        set[str],
+    ]:
         document_parse_statuses = self._document_parse_statuses_for_non_tabular_documents(bundle)
         if not bundle.xlsx_files:
             return RelationMemorySnapshot(), [], [], [], document_parse_statuses, set()
 
         with make_tempdir() as temp_dir:
             xlsx_paths = write_xlsx_payloads_to_tempdir(bundle.xlsx_files, temp_dir)
-            xlsx_documents = [document for document in bundle.documents if document.file_type in {"xlsx", "xlsm"}]
+            xlsx_documents = [
+                document for document in bundle.documents if document.file_type in {"xlsx", "xlsm"}
+            ]
             parsed_artifacts: list[ParsedWorkbookArtifact] = []
             metric_candidates: dict[str, MetricCandidate] = {}
             dynamic_relation_candidates: list[dict[str, Any]] = []
@@ -1534,7 +1628,9 @@ class RelationMemorySessionService:
                 parsed_document_ids,
             )
 
-    def _document_parse_statuses_for_non_tabular_documents(self, bundle: DocumentBundle) -> list[DocumentParseStatus]:
+    def _document_parse_statuses_for_non_tabular_documents(
+        self, bundle: DocumentBundle
+    ) -> list[DocumentParseStatus]:
         warnings_by_filename: dict[str, list[str]] = {}
         for warning in bundle.warnings:
             for document in bundle.documents:
@@ -1544,8 +1640,14 @@ class RelationMemorySessionService:
         for document in bundle.documents:
             if document.file_type in {"xlsx", "xlsm"}:
                 continue
-            parser = "text_ingestion" if document.file_type in {"txt", "md", "pdf"} else "unsupported_file_type"
-            status = "parsed" if document.file_type in {"txt", "md", "pdf"} else "unsupported_file_type"
+            parser = (
+                "text_ingestion"
+                if document.file_type in {"txt", "md", "pdf"}
+                else "unsupported_file_type"
+            )
+            status = (
+                "parsed" if document.file_type in {"txt", "md", "pdf"} else "unsupported_file_type"
+            )
             document_warnings = warnings_by_filename.get(document.filename, [])
             if document_warnings and status == "parsed":
                 status = "parsed_with_warnings"
@@ -1583,7 +1685,9 @@ class RelationMemorySessionService:
                 metric_mapping_priors,
             )
             if dynamic_result is not None:
-                snapshot, metric_candidates, relation_candidates, warnings, artifacts = dynamic_result
+                snapshot, metric_candidates, relation_candidates, warnings, artifacts = (
+                    dynamic_result
+                )
                 metric_dictionary_rows = self._read_metadata_rows(artifacts.metric_candidates_path)
                 dependency_rule_rows = self._read_metadata_rows(artifacts.dependency_rules_path)
                 parser = "dynamic_row_metric"
@@ -1596,7 +1700,9 @@ class RelationMemorySessionService:
                         warnings = self._unique_warnings([*warnings, *enrichment.warnings])
                         metric_dictionary_rows.extend(enrichment.metric_dictionary_rows)
                         dependency_rule_rows.extend(enrichment.dependency_rule_rows)
-                        metric_candidates.extend(self._metric_candidates_from_agentic_enrichment(enrichment))
+                        metric_candidates.extend(
+                            self._metric_candidates_from_agentic_enrichment(enrichment)
+                        )
                         relation_candidates.extend(enrichment.candidate_relations)
                         enrichment_metric_count = len(enrichment.metric_dictionary_rows)
                         enrichment_dependency_count = len(enrichment.dependency_rule_rows)
@@ -1606,7 +1712,9 @@ class RelationMemorySessionService:
                     file_type=document.file_type,
                     parser=parser,
                     status="parsed_with_warnings" if warnings else "parsed",
-                    contracts=[self._dynamic_numeric_facts_contract(artifacts.pivoted_facts_path, index)],
+                    contracts=[
+                        self._dynamic_numeric_facts_contract(artifacts.pivoted_facts_path, index)
+                    ],
                     metric_dictionary_rows=metric_dictionary_rows,
                     dependency_rule_rows=dependency_rule_rows,
                     metric_candidates=metric_candidates,
@@ -1617,11 +1725,13 @@ class RelationMemorySessionService:
                     dependency_count=len(snapshot.dependencies) + enrichment_dependency_count,
                 )
 
-            mapped_path, applied_metric_candidates, direct_warnings = self._rewrite_month_based_xlsx(
-                path,
-                index=index,
-                temp_dir=temp_dir,
-                metric_mapping_priors=metric_mapping_priors,
+            mapped_path, applied_metric_candidates, direct_warnings = (
+                self._rewrite_month_based_xlsx(
+                    path,
+                    index=index,
+                    temp_dir=temp_dir,
+                    metric_mapping_priors=metric_mapping_priors,
+                )
             )
             contract = self._contract_for_xlsx(mapped_path, index)
             if "month" not in contract.get("grain", []):
@@ -1635,7 +1745,9 @@ class RelationMemorySessionService:
                         status="parsed_with_warnings" if enrichment.warnings else "parsed",
                         metric_dictionary_rows=enrichment.metric_dictionary_rows,
                         dependency_rule_rows=enrichment.dependency_rule_rows,
-                        metric_candidates=self._metric_candidates_from_agentic_enrichment(enrichment),
+                        metric_candidates=self._metric_candidates_from_agentic_enrichment(
+                            enrichment
+                        ),
                         relation_candidates=enrichment.candidate_relations,
                         warnings=enrichment.warnings,
                         metric_count=len(enrichment.metric_dictionary_rows),
@@ -1681,7 +1793,9 @@ class RelationMemorySessionService:
                 warnings=[f"Failed to parse workbook {document.filename}: {exc}"],
             )
 
-    def _metadata_artifact_from_workbook(self, *, path: Path, document: Any) -> ParsedWorkbookArtifact | None:
+    def _metadata_artifact_from_workbook(
+        self, *, path: Path, document: Any
+    ) -> ParsedWorkbookArtifact | None:
         headers, rows = _sheet_rows(path)
         header_set = {str(header or "").strip() for header in headers}
         if {"metric_code", "label"}.issubset(header_set):
@@ -1706,7 +1820,9 @@ class RelationMemorySessionService:
             )
         return None
 
-    def _dynamic_numeric_facts_contract(self, pivoted_facts_path: Path, index: int) -> dict[str, Any]:
+    def _dynamic_numeric_facts_contract(
+        self, pivoted_facts_path: Path, index: int
+    ) -> dict[str, Any]:
         headers, _ = _sheet_rows(pivoted_facts_path, "pivoted_facts")
         dimensions = [header for header in headers if header in DIMENSION_COLUMNS]
         metrics = [header for header in headers if header not in dimensions]
@@ -1741,8 +1857,12 @@ class RelationMemorySessionService:
             "golden_queries": [],
         }
         manifest_path = temp_dir / f"single_manifest_{index}.yaml"
-        manifest_path.write_text(yaml.safe_dump(manifest, allow_unicode=True, sort_keys=False), encoding="utf-8")
-        return RelationMemoryPocBuilder(manifest_path, dependency_priors=memory_priors).build_snapshot()
+        manifest_path.write_text(
+            yaml.safe_dump(manifest, allow_unicode=True, sort_keys=False), encoding="utf-8"
+        )
+        return RelationMemoryPocBuilder(
+            manifest_path, dependency_priors=memory_priors
+        ).build_snapshot()
 
     def _build_combined_snapshot(
         self,
@@ -1751,9 +1871,15 @@ class RelationMemorySessionService:
         temp_dir: Path,
         memory_priors: list[dict[str, Any]],
     ) -> RelationMemorySnapshot:
-        incoming_csvs = [contract for artifact in parsed_artifacts for contract in artifact.contracts]
-        metric_rows = [row for artifact in parsed_artifacts for row in artifact.metric_dictionary_rows]
-        dependency_rows = [row for artifact in parsed_artifacts for row in artifact.dependency_rule_rows]
+        incoming_csvs = [
+            contract for artifact in parsed_artifacts for contract in artifact.contracts
+        ]
+        metric_rows = [
+            row for artifact in parsed_artifacts for row in artifact.metric_dictionary_rows
+        ]
+        dependency_rows = [
+            row for artifact in parsed_artifacts for row in artifact.dependency_rule_rows
+        ]
         if metric_rows:
             metric_dictionary_path = temp_dir / "combined_metric_dictionary.xlsx"
             self._write_rows_xlsx(
@@ -1819,13 +1945,17 @@ class RelationMemorySessionService:
             "golden_queries": [],
         }
         manifest_path = temp_dir / "manifest.yaml"
-        manifest_path.write_text(yaml.safe_dump(manifest, allow_unicode=True, sort_keys=False), encoding="utf-8")
+        manifest_path.write_text(
+            yaml.safe_dump(manifest, allow_unicode=True, sort_keys=False), encoding="utf-8"
+        )
         return RelationMemoryPocBuilder(
             manifest_path,
             dependency_priors=memory_priors,
         ).build_snapshot()
 
-    def _write_rows_xlsx(self, path: Path, sheet_name: str, headers: list[str], rows: list[dict[str, Any]]) -> None:
+    def _write_rows_xlsx(
+        self, path: Path, sheet_name: str, headers: list[str], rows: list[dict[str, Any]]
+    ) -> None:
         workbook = Workbook()
         sheet = workbook.active
         sheet.title = sheet_name[:31]
@@ -1905,7 +2035,10 @@ class RelationMemorySessionService:
         temp_dir: str | Path,
         memory_priors: list[dict[str, Any]],
         metric_mapping_priors: list[dict[str, Any]],
-    ) -> tuple[RelationMemorySnapshot, list[MetricCandidate], list[dict[str, Any]], list[str], Any] | None:
+    ) -> (
+        tuple[RelationMemorySnapshot, list[MetricCandidate], list[dict[str, Any]], list[str], Any]
+        | None
+    ):
         domain_pack = DomainPack.load("generic")
         profiler = WorkbookProfiler(domain_pack=domain_pack)
         profile = profiler.profile_workbook(path)
@@ -1930,8 +2063,12 @@ class RelationMemorySessionService:
             artifacts.generated_manifest_path,
             dependency_priors=memory_priors,
         ).build_snapshot()
-        metric_candidates = [self._metric_candidate_from_artifact(item) for item in artifacts.metric_candidates]
-        relation_candidates = self._select_dynamic_relation_candidates(artifacts.relation_candidates)
+        metric_candidates = [
+            self._metric_candidate_from_artifact(item) for item in artifacts.metric_candidates
+        ]
+        relation_candidates = self._select_dynamic_relation_candidates(
+            artifacts.relation_candidates
+        )
         return snapshot, metric_candidates, relation_candidates, artifacts.warnings, artifacts
 
     def _ollama_semantic_resolver(self) -> OllamaMetricSemanticResolver | None:
@@ -1945,7 +2082,10 @@ class RelationMemorySessionService:
         )
 
     def _ollama_relation_judge(self) -> OllamaRelationSemanticJudge | None:
-        if not settings.RELATION_MEMORY_OLLAMA_ENABLED or not settings.RELATION_MEMORY_OLLAMA_RELATION_GATE_ENABLED:
+        if (
+            not settings.RELATION_MEMORY_OLLAMA_ENABLED
+            or not settings.RELATION_MEMORY_OLLAMA_RELATION_GATE_ENABLED
+        ):
             return None
         return OllamaRelationSemanticJudge(
             model=settings.RELATION_MEMORY_OLLAMA_MODEL,
@@ -1954,11 +2094,14 @@ class RelationMemorySessionService:
             batch_size=max(1, min(settings.RELATION_MEMORY_OLLAMA_BATCH_SIZE, 12)),
         )
 
-    def _select_dynamic_relation_candidates(self, relations: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    def _select_dynamic_relation_candidates(
+        self, relations: list[dict[str, Any]]
+    ) -> list[dict[str, Any]]:
         pending_candidates = [
             item
             for item in relations
-            if item.get("needs_approval") or item.get("evidence_type") in {"statistical", "row_structure", "text"}
+            if item.get("needs_approval")
+            or item.get("evidence_type") in {"statistical", "row_structure", "text"}
         ]
         pending_candidates.sort(
             key=lambda item: (
@@ -1971,7 +2114,8 @@ class RelationMemorySessionService:
         selected = [
             item
             for item in pending_candidates
-            if float(item.get("score") or item.get("confidence") or 0.0) >= DYNAMIC_RELATION_MIN_PENDING_SCORE
+            if float(item.get("score") or item.get("confidence") or 0.0)
+            >= DYNAMIC_RELATION_MIN_PENDING_SCORE
         ][:DYNAMIC_RELATION_CANDIDATE_LIMIT]
         if not selected and pending_candidates:
             selected = pending_candidates[: min(5, DYNAMIC_RELATION_CANDIDATE_LIMIT)]
@@ -1979,9 +2123,7 @@ class RelationMemorySessionService:
 
     def _metric_candidate_from_artifact(self, item: dict[str, Any]) -> MetricCandidate:
         aliases = [
-            alias.strip()
-            for alias in str(item.get("aliases") or "").split("|")
-            if alias.strip()
+            alias.strip() for alias in str(item.get("aliases") or "").split("|") if alias.strip()
         ]
         metric_id = str(item.get("metric_id") or item.get("canonical_code") or uuid.uuid4())
         status = str(item.get("status") or "proposed")
@@ -2056,7 +2198,9 @@ class RelationMemorySessionService:
     def _metric_mapping_lookup(self, priors: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
         lookup: dict[str, dict[str, Any]] = {}
         for prior in priors:
-            canonical_code = str(prior.get("canonical_code") or prior.get("metric_code") or "").strip()
+            canonical_code = str(
+                prior.get("canonical_code") or prior.get("metric_code") or ""
+            ).strip()
             if not canonical_code:
                 continue
             aliases = [
@@ -2143,7 +2287,9 @@ class RelationMemorySessionService:
         if "month" in contract.get("grain", []):
             return path
 
-        normalized_path = normalize_row_metric_xlsx(path, index, temp_dir, inferred_dependency_priors)
+        normalized_path = normalize_row_metric_xlsx(
+            path, index, temp_dir, inferred_dependency_priors
+        )
         if normalized_path is None:
             bundle.warnings.append(
                 f"Excel file {path.name} was read, but no month column or row-metric report layout was detected."
@@ -2236,11 +2382,15 @@ class RelationMemorySessionService:
             return None
         return state.pending_confirmations.get(candidate.id)
 
-    def _add_candidate(self, state: RelationMemorySessionState, raw_candidate: dict[str, Any] | CandidateRelation) -> None:
+    def _add_candidate(
+        self, state: RelationMemorySessionState, raw_candidate: dict[str, Any] | CandidateRelation
+    ) -> None:
         if isinstance(raw_candidate, CandidateRelation):
             candidate = raw_candidate
         else:
-            candidate = self._candidate_from_raw(raw_candidate, state, source=str(raw_candidate.get("source") or "candidate"))
+            candidate = self._candidate_from_raw(
+                raw_candidate, state, source=str(raw_candidate.get("source") or "candidate")
+            )
             if candidate is None:
                 return
         if candidate.source_metric_code == candidate.target_metric_code:
@@ -2252,7 +2402,9 @@ class RelationMemorySessionService:
         self._validate_candidate_metrics(candidate, state)
         state.pending_confirmations.setdefault(candidate.id, candidate)
 
-    def _validate_candidate_metrics(self, candidate: CandidateRelation, state: RelationMemorySessionState) -> None:
+    def _validate_candidate_metrics(
+        self, candidate: CandidateRelation, state: RelationMemorySessionState
+    ) -> None:
         missing = [
             metric_code
             for metric_code in (candidate.source_metric_code, candidate.target_metric_code)
@@ -2261,7 +2413,9 @@ class RelationMemorySessionService:
         if missing:
             raise ValueError(f"Candidate references unknown metrics: {', '.join(missing)}")
 
-    def _relation_memory_priors(self, previous_state: RelationMemorySessionState | None) -> list[dict[str, Any]]:
+    def _relation_memory_priors(
+        self, previous_state: RelationMemorySessionState | None
+    ) -> list[dict[str, Any]]:
         priors = list(self._get_memory_priors())
         if previous_state:
             priors.extend(relation.model_dump() for relation in previous_state.approved_relations)
@@ -2270,8 +2424,12 @@ class RelationMemorySessionService:
             deduped[relation_key(prior)] = prior
         return list(deduped.values())
 
-    def _metric_mapping_priors(self, previous_state: RelationMemorySessionState | None) -> list[dict[str, Any]]:
-        rejected_ids = set(previous_state.rejected_metric_candidate_ids) if previous_state else set()
+    def _metric_mapping_priors(
+        self, previous_state: RelationMemorySessionState | None
+    ) -> list[dict[str, Any]]:
+        rejected_ids = (
+            set(previous_state.rejected_metric_candidate_ids) if previous_state else set()
+        )
         priors = []
         for prior in self._get_metric_mapping_priors():
             if self._metric_mapping_candidate_id(prior) in rejected_ids:
@@ -2358,7 +2516,9 @@ class RelationMemorySessionService:
                         dict.fromkeys(
                             [
                                 alias,
-                                str(metric_entry.get("label") or alias_payload.get("label") or alias),
+                                str(
+                                    metric_entry.get("label") or alias_payload.get("label") or alias
+                                ),
                                 canonical_code,
                             ]
                         )

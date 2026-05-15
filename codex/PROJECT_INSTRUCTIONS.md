@@ -2,7 +2,8 @@
 
 You are contributing to Business Graph MCP.
 
-Core rule: do not put business logic in MCP or API adapters. Adapters call services. Services call parsers, extractors and repositories.
+Core rule: do not put business logic in MCP or API adapters.
+Adapters call services. Services call parsers, extractors and repositories.
 
 ## Non-negotiables
 

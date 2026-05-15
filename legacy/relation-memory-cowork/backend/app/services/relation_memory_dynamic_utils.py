@@ -210,7 +210,18 @@ def formula_signature(formula: str) -> str:
 
 def aggregation_for_metric(metric_code: str, unit: str | None = None) -> str:
     text = f"{metric_code} {unit or ''}".lower()
-    average_tokens = ("rate", "avg", "margin", "index", "days", "temperature", "%", "доля", "индекс", "ставка")
+    average_tokens = (
+        "rate",
+        "avg",
+        "margin",
+        "index",
+        "days",
+        "temperature",
+        "%",
+        "доля",
+        "индекс",
+        "ставка",
+    )
     return "mean" if any(token in text for token in average_tokens) else "sum"
 
 

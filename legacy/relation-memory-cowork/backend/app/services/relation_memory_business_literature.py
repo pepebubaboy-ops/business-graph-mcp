@@ -96,7 +96,9 @@ class BusinessLiteratureRetriever:
                 stat = path.stat()
             except OSError:
                 continue
-            rows.append((str(path.relative_to(self.root_dir)), int(stat.st_mtime_ns), int(stat.st_size)))
+            rows.append(
+                (str(path.relative_to(self.root_dir)), int(stat.st_mtime_ns), int(stat.st_size))
+            )
         return tuple(rows)
 
 
@@ -200,7 +202,9 @@ def _query_text_from_pairs(proposed_pairs: list[dict[str, Any]]) -> str:
     return " ".join(parts)
 
 
-def _score_chunk(*, chunk: BusinessLiteratureChunk, query_terms: set[str], query_text: str) -> float:
+def _score_chunk(
+    *, chunk: BusinessLiteratureChunk, query_terms: set[str], query_text: str
+) -> float:
     overlap = query_terms & chunk.terms
     if not overlap:
         return 0.0

@@ -95,7 +95,9 @@ class RelationMemoryNeo4jClient:
                 "MATCH (m:Metric)-[:USES_FORMULA]->(:Formula)-[:FROM_DATASET]->(d:Dataset) "
                 "RETURN m.code AS metric_code, collect(d.key) AS dataset_keys"
             )
-            metric_datasets = {record["metric_code"]: record["dataset_keys"] for record in metric_datasets_rows}
+            metric_datasets = {
+                record["metric_code"]: record["dataset_keys"] for record in metric_datasets_rows
+            }
             entity_values = [
                 dict(record)
                 for record in session.run(
@@ -147,7 +149,10 @@ class RelationMemoryNeo4jClient:
             "LIMIT $limit"
         )
         with self.driver.session(database=self.database) as session:
-            return [dict(record) for record in session.run(query, target_codes=target_metric_codes, limit=limit)]
+            return [
+                dict(record)
+                for record in session.run(query, target_codes=target_metric_codes, limit=limit)
+            ]
 
     def find_dependency_paths(
         self,
@@ -172,7 +177,15 @@ class RelationMemoryNeo4jClient:
             "LIMIT $limit"
         )
         with self.driver.session(database=self.database) as session:
-            return [dict(record) for record in session.run(query, source_codes=source_metric_codes, target_codes=target_metric_codes, limit=limit)]
+            return [
+                dict(record)
+                for record in session.run(
+                    query,
+                    source_codes=source_metric_codes,
+                    target_codes=target_metric_codes,
+                    limit=limit,
+                )
+            ]
 
     def save_confirmed_relation(
         self,

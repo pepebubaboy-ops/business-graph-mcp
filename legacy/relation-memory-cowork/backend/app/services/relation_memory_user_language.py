@@ -66,7 +66,11 @@ class RelationMemoryUserLanguageResolver:
                 context.pending_clarification = None
 
         intent = explicit_intent
-        if intent == "unknown" and self._is_contextual_follow_up(raw_question) and context.last_resolved_intent:
+        if (
+            intent == "unknown"
+            and self._is_contextual_follow_up(raw_question)
+            and context.last_resolved_intent
+        ):
             intent = context.last_resolved_intent
 
         if intent == "unknown":
@@ -85,7 +89,11 @@ class RelationMemoryUserLanguageResolver:
 
         slots = self._extract_slots(raw_question, intent)
         if not slots:
-            slots = [{"role": "metric", "phrase": ""}] if intent != "relation_why" else [{"role": "source", "phrase": ""}, {"role": "target", "phrase": ""}]
+            slots = (
+                [{"role": "metric", "phrase": ""}]
+                if intent != "relation_why"
+                else [{"role": "source", "phrase": ""}, {"role": "target", "phrase": ""}]
+            )
 
         resolved_metrics: list[ResolvedMetricCandidate] = []
         clarification_slots: list[ClarificationSlot] = []
@@ -96,16 +104,34 @@ class RelationMemoryUserLanguageResolver:
             role = str(slot["role"])
             phrase = str(slot.get("phrase") or "").strip()
             if self._is_contextual_phrase(phrase):
-                context_metric = self._context_metric_for_role(intent=intent, role=role, context=context)
+                context_metric = self._context_metric_for_role(
+                    intent=intent, role=role, context=context
+                )
                 if context_metric:
-                    resolved_metrics.append(self._candidate_for_code(context_metric, role=role, match_reason="context_fallback", matched_alias=phrase or "context"))
+                    resolved_metrics.append(
+                        self._candidate_for_code(
+                            context_metric,
+                            role=role,
+                            match_reason="context_fallback",
+                            matched_alias=phrase or "context",
+                        )
+                    )
                     used_context = True
                     continue
 
             if not phrase and intent != "relation_why":
-                context_metric = self._context_metric_for_role(intent=intent, role=role, context=context)
+                context_metric = self._context_metric_for_role(
+                    intent=intent, role=role, context=context
+                )
                 if context_metric:
-                    resolved_metrics.append(self._candidate_for_code(context_metric, role=role, match_reason="context_fallback", matched_alias="context"))
+                    resolved_metrics.append(
+                        self._candidate_for_code(
+                            context_metric,
+                            role=role,
+                            match_reason="context_fallback",
+                            matched_alias="context",
+                        )
+                    )
                     used_context = True
                     continue
 
@@ -114,7 +140,9 @@ class RelationMemoryUserLanguageResolver:
                 resolved_metrics.append(resolved)
                 continue
             if candidates:
-                clarification_slots.append(ClarificationSlot(role=role, phrase=phrase, options=candidates[:3]))
+                clarification_slots.append(
+                    ClarificationSlot(role=role, phrase=phrase, options=candidates[:3])
+                )
             else:
                 clarification_slots.append(ClarificationSlot(role=role, phrase=phrase, options=[]))
 
@@ -124,8 +152,16 @@ class RelationMemoryUserLanguageResolver:
                 first_slot = slots[0] if slots else {"phrase": raw_question}
                 second_slot = slots[1] if len(slots) > 1 else {"phrase": raw_question}
                 clarification_slots = [
-                    ClarificationSlot(role="source", phrase=str(first_slot.get("phrase") or ""), options=[resolved_metrics[0]]),
-                    ClarificationSlot(role="target", phrase=str(second_slot.get("phrase") or ""), options=[resolved_metrics[1]]),
+                    ClarificationSlot(
+                        role="source",
+                        phrase=str(first_slot.get("phrase") or ""),
+                        options=[resolved_metrics[0]],
+                    ),
+                    ClarificationSlot(
+                        role="target",
+                        phrase=str(second_slot.get("phrase") or ""),
+                        options=[resolved_metrics[1]],
+                    ),
                 ]
                 resolved_metrics = []
 
@@ -193,9 +229,7 @@ class RelationMemoryUserLanguageResolver:
                     f"{slot.role}: «{slot.phrase or slot.role}» не удалось сопоставить с метрикой из графа"
                 )
         return (
-            "Чтобы объяснить связь, нужно уточнить метрики отдельно. "
-            + " ".join(slot_lines)
-            + "."
+            "Чтобы объяснить связь, нужно уточнить метрики отдельно. " + " ".join(slot_lines) + "."
         )
 
     def _resolve_pending_clarification(
@@ -213,13 +247,19 @@ class RelationMemoryUserLanguageResolver:
 
         confirmed_aliases: list[ConfirmedMetricAlias] = []
         for slot in unresolved_slots:
-            selected = self._select_clarification_option(user_input, slot, allow_numeric=len(unresolved_slots) == 1)
+            selected = self._select_clarification_option(
+                user_input, slot, allow_numeric=len(unresolved_slots) == 1
+            )
             if selected is None:
                 continue
             slot.resolved_code = selected.code
             if self._is_persistable_alias(slot.phrase, selected.code):
                 confirmed_aliases.append(
-                    ConfirmedMetricAlias(canonical_code=selected.code, alias=slot.phrase.strip(), label=selected.label)
+                    ConfirmedMetricAlias(
+                        canonical_code=selected.code,
+                        alias=slot.phrase.strip(),
+                        label=selected.label,
+                    )
                 )
 
         remaining_slots = [slot for slot in pending.slots if not slot.resolved_code]
@@ -236,7 +276,12 @@ class RelationMemoryUserLanguageResolver:
             )
 
         resolved_metrics = [
-            self._candidate_for_code(str(slot.resolved_code), role=slot.role, match_reason="clarification", matched_alias=slot.phrase)
+            self._candidate_for_code(
+                str(slot.resolved_code),
+                role=slot.role,
+                match_reason="clarification",
+                matched_alias=slot.phrase,
+            )
             for slot in pending.slots
             if slot.resolved_code
         ]
@@ -272,7 +317,10 @@ class RelationMemoryUserLanguageResolver:
 
         ranked: list[tuple[float, ResolvedMetricCandidate]] = []
         for option in slot.options:
-            if option.code and re.search(rf"(?<![0-9a-zа-яё_]){re.escape(option.code.lower())}(?![0-9a-zа-яё_])", user_input.lower()):
+            if option.code and re.search(
+                rf"(?<![0-9a-zа-яё_]){re.escape(option.code.lower())}(?![0-9a-zа-яё_])",
+                user_input.lower(),
+            ):
                 return option
             aliases = self._option_aliases(option)
             best_score = 0.0
@@ -309,7 +357,11 @@ class RelationMemoryUserLanguageResolver:
         stages = [
             self._exact_metric_code_matches(cleaned_phrase, role),
             self._exact_alias_matches(cleaned_phrase, role, categories={"approved_alias"}),
-            self._exact_alias_matches(cleaned_phrase, role, categories={"label", "source_label", "alias", "semantic_alias"}),
+            self._exact_alias_matches(
+                cleaned_phrase,
+                role,
+                categories={"label", "source_label", "alias", "semantic_alias"},
+            ),
             self._normalized_phrase_matches(cleaned_phrase, role),
             self._abbreviation_matches(cleaned_phrase, role),
             self._translit_matches(cleaned_phrase, role),
@@ -326,7 +378,9 @@ class RelationMemoryUserLanguageResolver:
             return None, candidates
         return None, []
 
-    def _exact_metric_code_matches(self, phrase: str, role: str) -> tuple[str, list[ResolvedMetricCandidate]]:
+    def _exact_metric_code_matches(
+        self, phrase: str, role: str
+    ) -> tuple[str, list[ResolvedMetricCandidate]]:
         lowered = phrase.lower()
         matches = []
         for code, metric in self.metric_lookup.items():
@@ -371,7 +425,9 @@ class RelationMemoryUserLanguageResolver:
             )
         return "exact_alias", self._dedupe_candidates(matches)
 
-    def _normalized_phrase_matches(self, phrase: str, role: str) -> tuple[str, list[ResolvedMetricCandidate]]:
+    def _normalized_phrase_matches(
+        self, phrase: str, role: str
+    ) -> tuple[str, list[ResolvedMetricCandidate]]:
         normalized = normalize_user_text(phrase)
         latinized = latinize_text(normalized)
         stemmed = stem_phrase(normalized)
@@ -386,7 +442,12 @@ class RelationMemoryUserLanguageResolver:
             if record.normalized == normalized:
                 score = 0.93
             elif normalized in record.normalized or record.normalized in normalized:
-                score = 0.9 + min(len(phrase_tokens), len(record.tokens)) / max(len(record.tokens), 1) * 0.03
+                score = (
+                    0.9
+                    + min(len(phrase_tokens), len(record.tokens))
+                    / max(len(record.tokens), 1)
+                    * 0.03
+                )
             elif record.stemmed and record.stemmed == stemmed:
                 score = 0.89
             elif stemmed and stemmed in record.stemmed:
@@ -411,10 +472,14 @@ class RelationMemoryUserLanguageResolver:
 
     def _is_broad_alias_mismatch(self, normalized_phrase: str, record: MetricAliasRecord) -> bool:
         if record.code == "gross_margin" and record.normalized in {"маржа", "margin"}:
-            return any(token in normalized_phrase for token in ("операцион", "operating", "чист", "net"))
+            return any(
+                token in normalized_phrase for token in ("операцион", "operating", "чист", "net")
+            )
         return False
 
-    def _abbreviation_matches(self, phrase: str, role: str) -> tuple[str, list[ResolvedMetricCandidate]]:
+    def _abbreviation_matches(
+        self, phrase: str, role: str
+    ) -> tuple[str, list[ResolvedMetricCandidate]]:
         normalized = normalize_user_text(phrase)
         tokens = normalized.split()
         matches: list[ResolvedMetricCandidate] = []
@@ -434,7 +499,9 @@ class RelationMemoryUserLanguageResolver:
                 )
         return "abbreviation", self._dedupe_candidates(matches)
 
-    def _translit_matches(self, phrase: str, role: str) -> tuple[str, list[ResolvedMetricCandidate]]:
+    def _translit_matches(
+        self, phrase: str, role: str
+    ) -> tuple[str, list[ResolvedMetricCandidate]]:
         normalized = normalize_user_text(phrase)
         latinized = latinize_text(phrase)
         if not latinized:
@@ -465,7 +532,9 @@ class RelationMemoryUserLanguageResolver:
             )
         return "translit", self._dedupe_candidates(matches)
 
-    def _fuzzy_typo_matches(self, phrase: str, role: str) -> tuple[str, list[ResolvedMetricCandidate]]:
+    def _fuzzy_typo_matches(
+        self, phrase: str, role: str
+    ) -> tuple[str, list[ResolvedMetricCandidate]]:
         normalized = normalize_user_text(phrase)
         phrase_tokens = [token for token in normalized.split() if token]
         if len(phrase_tokens) != 1:
@@ -477,7 +546,11 @@ class RelationMemoryUserLanguageResolver:
         for record in self.alias_records:
             candidates = [record.normalized, *record.tokens]
             best_distance = min(
-                (_edit_distance(token, candidate) for candidate in candidates if candidate and len(candidate) >= 5),
+                (
+                    _edit_distance(token, candidate)
+                    for candidate in candidates
+                    if candidate and len(candidate) >= 5
+                ),
                 default=999,
             )
             if best_distance > 2:
@@ -496,7 +569,9 @@ class RelationMemoryUserLanguageResolver:
             )
         return "fuzzy_typo", self._dedupe_candidates(matches)
 
-    def _token_overlap_matches(self, phrase: str, role: str) -> tuple[str, list[ResolvedMetricCandidate]]:
+    def _token_overlap_matches(
+        self, phrase: str, role: str
+    ) -> tuple[str, list[ResolvedMetricCandidate]]:
         normalized = normalize_user_text(phrase)
         question_tokens = informative_tokens(normalized)
         if len(question_tokens) < 2:
@@ -523,13 +598,17 @@ class RelationMemoryUserLanguageResolver:
             )
         return "token_overlap", self._dedupe_candidates(matches)
 
-    def _dedupe_candidates(self, candidates: list[ResolvedMetricCandidate]) -> list[ResolvedMetricCandidate]:
+    def _dedupe_candidates(
+        self, candidates: list[ResolvedMetricCandidate]
+    ) -> list[ResolvedMetricCandidate]:
         best_by_code: dict[str, ResolvedMetricCandidate] = {}
         for candidate in candidates:
             existing = best_by_code.get(candidate.code)
             if existing is None or float(candidate.score) > float(existing.score):
                 best_by_code[candidate.code] = candidate
-        return sorted(best_by_code.values(), key=lambda item: (-float(item.score), item.label, item.code))
+        return sorted(
+            best_by_code.values(), key=lambda item: (-float(item.score), item.label, item.code)
+        )
 
     def _broad_alias_preference(
         self,
@@ -547,11 +626,16 @@ class RelationMemoryUserLanguageResolver:
         raw_code = record.code.lower()
         normalized_code = normalize_user_text(record.code)
         normalized_label = normalize_user_text(record.label)
-        if any(hint in raw_code or hint in normalized_code or hint in normalized_label for hint in preferred_code_hints):
+        if any(
+            hint in raw_code or hint in normalized_code or hint in normalized_label
+            for hint in preferred_code_hints
+        ):
             return 0.04
         return 0.0
 
-    def _can_accept_best_candidate(self, stage_name: str, candidates: list[ResolvedMetricCandidate]) -> bool:
+    def _can_accept_best_candidate(
+        self, stage_name: str, candidates: list[ResolvedMetricCandidate]
+    ) -> bool:
         if len(candidates) < 2:
             return True
         best = candidates[0]
@@ -569,7 +653,9 @@ class RelationMemoryUserLanguageResolver:
             return gap >= 0.12 and float(best.score) >= 0.8
         return False
 
-    def _build_alias_records(self, metric_map: dict[str, dict[str, Any]]) -> list[MetricAliasRecord]:
+    def _build_alias_records(
+        self, metric_map: dict[str, dict[str, Any]]
+    ) -> list[MetricAliasRecord]:
         records: list[MetricAliasRecord] = []
         seen: set[tuple[str, str, str]] = set()
         for code, metric in metric_map.items():
@@ -580,7 +666,12 @@ class RelationMemoryUserLanguageResolver:
                 ("source_label", metric.get("source_labels") or []),
                 ("label", [label]),
                 ("alias", metric.get("aliases") or []),
-                ("semantic_alias", self._semantic_aliases(code=code, label=label, aliases=metric.get("aliases") or [])),
+                (
+                    "semantic_alias",
+                    self._semantic_aliases(
+                        code=code, label=label, aliases=metric.get("aliases") or []
+                    ),
+                ),
             ]
             for category, alias_values in alias_groups:
                 for alias in alias_values:
@@ -619,7 +710,9 @@ class RelationMemoryUserLanguageResolver:
         if any(token in normalize_user_text(code) for token in ("ftl", "фтл")) and any(
             token in normalize_user_text(code) for token in ("sebestoimost", "себестоимост")
         ):
-            hints.extend(["себестоимость ftl", "себестоимость перевозки", "себестоимость рейса ftl"])
+            hints.extend(
+                ["себестоимость ftl", "себестоимость перевозки", "себестоимость рейса ftl"]
+            )
         return list(dict.fromkeys(hint for hint in hints if hint))
 
     def _abbreviation_variants(self, alias: str) -> list[str]:
@@ -628,7 +721,9 @@ class RelationMemoryUserLanguageResolver:
             lowered = token.lower()
             if len(lowered) >= 2 and token.isupper():
                 abbreviations.append(lowered)
-        initials = "".join(token[0].lower() for token in re.findall(r"[A-Za-zА-ЯЁа-яё0-9]+", alias) if token)
+        initials = "".join(
+            token[0].lower() for token in re.findall(r"[A-Za-zА-ЯЁа-яё0-9]+", alias) if token
+        )
         if len(initials) >= 2:
             abbreviations.append(initials)
         return list(dict.fromkeys(item for item in abbreviations if item))
@@ -651,7 +746,9 @@ class RelationMemoryUserLanguageResolver:
             role=role,
         )
 
-    def _clarification_matched_metrics(self, slots: list[ClarificationSlot]) -> list[dict[str, Any]]:
+    def _clarification_matched_metrics(
+        self, slots: list[ClarificationSlot]
+    ) -> list[dict[str, Any]]:
         flattened = []
         seen: set[tuple[str, str]] = set()
         for slot in slots:
@@ -666,7 +763,11 @@ class RelationMemoryUserLanguageResolver:
         return flattened[:6]
 
     def _clarification_warning(self, intent: str) -> str:
-        return "needs_relation_clarification" if intent == "relation_why" else "needs_metric_clarification"
+        return (
+            "needs_relation_clarification"
+            if intent == "relation_why"
+            else "needs_metric_clarification"
+        )
 
     def _context_metric_for_role(
         self,
@@ -697,10 +798,15 @@ class RelationMemoryUserLanguageResolver:
         change_verb = CHANGE_VERB_PATTERN
         patterns = {
             "upstream": [
-                re.compile(r"(?:что|кто|какие(?:\s+\w+)*)\s+влия(?:ет|ют)\s+на\s+(.+)$", re.IGNORECASE),
+                re.compile(
+                    r"(?:что|кто|какие(?:\s+\w+)*)\s+влия(?:ет|ют)\s+на\s+(.+)$", re.IGNORECASE
+                ),
                 re.compile(r"от\s+чего\s+зависит\s+(.+)$", re.IGNORECASE),
                 re.compile(r"what\s+affects\s+(.+)$", re.IGNORECASE),
-                re.compile(r"(?:факторы|причины|драйверы)(?:\s+\w+)*\s+(?:влияющие\s+на|влияния\s+на|для)\s+(.+)$", re.IGNORECASE),
+                re.compile(
+                    r"(?:факторы|причины|драйверы)(?:\s+\w+)*\s+(?:влияющие\s+на|влияния\s+на|для)\s+(.+)$",
+                    re.IGNORECASE,
+                ),
                 re.compile(r"(?:factors|drivers)\s+(?:affecting|for)\s+(.+)$", re.IGNORECASE),
                 re.compile(rf"почему\s+(.+?)\s+(?:{change_verb})$", re.IGNORECASE),
                 re.compile(rf"почему\s+(?:{change_verb})\s+(.+)$", re.IGNORECASE),
@@ -719,7 +825,9 @@ class RelationMemoryUserLanguageResolver:
                 re.compile(r"связан(?:а|о|ы)?\s+ли\s+(.+?)\s+с\s+(.+)$", re.IGNORECASE),
                 re.compile(r"(.+?)\s+связан(?:а|о|ы)?\s+ли\s+.+?\s+с\s+(.+)$", re.IGNORECASE),
                 re.compile(r"(?:^|\s)влия(?:ет|ют)\s+ли\s+(.+?)\s+на\s+(.+)$", re.IGNORECASE),
-                re.compile(r"(?:может|могут)\s+ли\s+(.+?)\s+влия(?:ть|ет|ют)\s+на\s+(.+)$", re.IGNORECASE),
+                re.compile(
+                    r"(?:может|могут)\s+ли\s+(.+?)\s+влия(?:ть|ет|ют)\s+на\s+(.+)$", re.IGNORECASE
+                ),
                 re.compile(r"(?:как|почему)?\s*(.+?)\s+влия(?:ет|ют)\s+на\s+(.+)$", re.IGNORECASE),
                 re.compile(r"между\s+(.+?)\s+и\s+(.+)$", re.IGNORECASE),
                 re.compile(r"(.+?)\s+связан(?:а|о|ы)?\s+с\s+(.+)$", re.IGNORECASE),
@@ -764,19 +872,28 @@ class RelationMemoryUserLanguageResolver:
             target_phrase = self._strip_metric_phrase(body[separator.end() :])
             if not source_phrase or not target_phrase:
                 continue
-            source, _source_candidates = self._resolve_metric_phrase(phrase=source_phrase, role="source")
-            target, _target_candidates = self._resolve_metric_phrase(phrase=target_phrase, role="target")
+            source, _source_candidates = self._resolve_metric_phrase(
+                phrase=source_phrase, role="source"
+            )
+            target, _target_candidates = self._resolve_metric_phrase(
+                phrase=target_phrase, role="target"
+            )
             if source is None or target is None or source.code == target.code:
                 continue
             score = float(source.score or 0.0) + float(target.score or 0.0)
             score += self._relation_split_boundary_bonus(source_phrase, target_phrase)
-            ranked.append((score, -abs(len(source_phrase) - len(target_phrase)), source_phrase, target_phrase))
+            ranked.append(
+                (score, -abs(len(source_phrase) - len(target_phrase)), source_phrase, target_phrase)
+            )
 
         if not ranked:
             return []
         ranked.sort(key=lambda item: (-item[0], -item[1], item[2], item[3]))
         _score, _balance, source_phrase, target_phrase = ranked[0]
-        return [{"role": "source", "phrase": source_phrase}, {"role": "target", "phrase": target_phrase}]
+        return [
+            {"role": "source", "phrase": source_phrase},
+            {"role": "target", "phrase": target_phrase},
+        ]
 
     def _relation_split_boundary_bonus(self, source_phrase: str, target_phrase: str) -> float:
         score = 0.0
@@ -797,42 +914,69 @@ class RelationMemoryUserLanguageResolver:
         return cleaned
 
     def _detect_intent(self, normalized_question: str) -> str:
-        has_relation_word = any(token in normalized_question for token in ("связ", "relation", "relations", "edge", "edges"))
+        has_relation_word = any(
+            token in normalized_question
+            for token in ("связ", "relation", "relations", "edge", "edges")
+        )
         has_overview_word = any(
             token in normalized_question
             for token in ("какие", "есть", "покажи", "список", "все", "обзор", "list", "show")
         )
         if any(token in normalized_question for token in ("гипотез", "hypothesis", "hypotheses")):
             return "hypotheses_overview"
-        if any(token in normalized_question for token in ("наблюден", "observation", "observations")):
+        if any(
+            token in normalized_question for token in ("наблюден", "observation", "observations")
+        ):
             return "observations_overview"
         if has_overview_word and any(token in normalized_question for token in ("граф", "graph")):
             return "relations_overview"
         if (
             has_overview_word
-            and any(token in normalized_question for token in ("метрик", "metric", "metrics", "показател"))
-            and not any(token in normalized_question for token in ("влия", "завис", "driver", "drivers"))
+            and any(
+                token in normalized_question
+                for token in ("метрик", "metric", "metrics", "показател")
+            )
+            and not any(
+                token in normalized_question for token in ("влия", "завис", "driver", "drivers")
+            )
         ):
             return "metrics_overview"
-        if any(token in normalized_question for token in ("pending", "подтвержд", "подтверд", "апрув", "approval", "кандидат")):
+        if any(
+            token in normalized_question
+            for token in ("pending", "подтвержд", "подтверд", "апрув", "approval", "кандидат")
+        ):
             return "pending_confirmations"
         if "провер" in normalized_question and (
-            has_relation_word or any(token in normalized_question for token in ("что", "какие", "которые"))
+            has_relation_word
+            or any(token in normalized_question for token in ("что", "какие", "которые"))
         ):
             return "pending_confirmations"
         if self._looks_like_relation_why_question(normalized_question):
             return "relation_why"
-        if re.search(r"(?:^|\s)влия(?:ет|ют)\s+ли\s+.+?\s+на\s+.+$", normalized_question, flags=re.IGNORECASE):
+        if re.search(
+            r"(?:^|\s)влия(?:ет|ют)\s+ли\s+.+?\s+на\s+.+$", normalized_question, flags=re.IGNORECASE
+        ):
             return "relation_why"
-        if re.search(r"(?:может|могут)\s+ли\s+.+?\s+влия(?:ть|ет|ют)\s+на\s+.+$", normalized_question, flags=re.IGNORECASE):
+        if re.search(
+            r"(?:может|могут)\s+ли\s+.+?\s+влия(?:ть|ет|ют)\s+на\s+.+$",
+            normalized_question,
+            flags=re.IGNORECASE,
+        ):
             return "relation_why"
-        if re.search(r"^(?:как|почему)\s+.+?\s+влия(?:ет|ют)\s+на\s+.+$", normalized_question, flags=re.IGNORECASE):
+        if re.search(
+            r"^(?:как|почему)\s+.+?\s+влия(?:ет|ют)\s+на\s+.+$",
+            normalized_question,
+            flags=re.IGNORECASE,
+        ):
             return "relation_why"
         if has_relation_word and has_overview_word:
             return "relations_overview"
         if self._looks_like_change_cause_question(normalized_question):
             return "change_cause"
-        if any(token in normalized_question for token in ("куда влияет", "на что влияет", "что зависит от", "what does")):
+        if any(
+            token in normalized_question
+            for token in ("куда влияет", "на что влияет", "что зависит от", "what does")
+        ):
             return "downstream"
         if any(
             token in normalized_question
@@ -868,12 +1012,25 @@ class RelationMemoryUserLanguageResolver:
             phrase in normalized_question
             for phrase in ("почему", "из за чего", "из-за чего", "why")
         )
-        has_cause_prefix = has_cause_prefix or bool(re.search(r"причин\w*\s+изменени", normalized_question))
+        has_cause_prefix = has_cause_prefix or bool(
+            re.search(r"причин\w*\s+изменени", normalized_question)
+        )
         if not has_cause_prefix:
             return False
-        return bool(re.search(CHANGE_VERB_PATTERN, normalized_question, flags=re.IGNORECASE)) or any(
+        return bool(
+            re.search(CHANGE_VERB_PATTERN, normalized_question, flags=re.IGNORECASE)
+        ) or any(
             token in normalized_question
-            for token in ("рост", "вверх", "снижение", "падение", "изменени", "decline", "growth", "change")
+            for token in (
+                "рост",
+                "вверх",
+                "снижение",
+                "падение",
+                "изменени",
+                "decline",
+                "growth",
+                "change",
+            )
         )
 
     def _looks_like_new_question(self, question: str, explicit_intent: str) -> bool:
@@ -902,7 +1059,9 @@ class RelationMemoryUserLanguageResolver:
         tokens = normalized.split()
         if not tokens:
             return True
-        return all(token in CONTEXTUAL_TOKENS or token in {"а", "и", "на", "про"} for token in tokens)
+        return all(
+            token in CONTEXTUAL_TOKENS or token in {"а", "и", "на", "про"} for token in tokens
+        )
 
     def _matched_tokens(self, source_tokens: list[str], target_tokens: list[str]) -> list[str]:
         matched: list[str] = []

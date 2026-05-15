@@ -67,20 +67,29 @@ class QuestionPlanner:
         "tell ",
     )
 
-    def __init__(self, *, llm_client: RelationMemoryLlmClient | None = None, enabled: bool | None = None):
+    def __init__(
+        self, *, llm_client: RelationMemoryLlmClient | None = None, enabled: bool | None = None
+    ):
         self.enabled = settings.RELATION_MEMORY_LLM_ANSWER_ENABLED if enabled is None else enabled
         self.llm_client = llm_client
 
     def plan(self, *, question: str) -> QuestionPlan:
         fallback_plan = self._deterministic_plan(question)
-        if self.enabled and fallback_plan.raw_question and not self._should_use_deterministic_plan(fallback_plan):
+        if (
+            self.enabled
+            and fallback_plan.raw_question
+            and not self._should_use_deterministic_plan(fallback_plan)
+        ):
             llm_plan = self._llm_plan(question=question, fallback_plan=fallback_plan)
             if llm_plan is not None:
                 return self._select_plan(llm_plan=llm_plan, fallback_plan=fallback_plan)
         return fallback_plan
 
     def _should_use_deterministic_plan(self, fallback_plan: QuestionPlan) -> bool:
-        return fallback_plan.intent not in {"unknown", "statement"} and fallback_plan.confidence >= 0.85
+        return (
+            fallback_plan.intent not in {"unknown", "statement"}
+            and fallback_plan.confidence >= 0.85
+        )
 
     def _deterministic_plan(self, question: str) -> QuestionPlan:
         raw_question = str(question or "").strip()
@@ -119,11 +128,11 @@ class QuestionPlanner:
             "If the user asks why a metric is growing, falling, changing, declining, rising, or 'падает/растет', "
             "use intent=change_cause, not upstream. "
             "Example: 'почему выручка поползла вверх?' => "
-            "{\"intent\":\"change_cause\",\"metric_slots\":[{\"role\":\"metric\",\"phrase\":\"выручка\"}],"
-            "\"requested_direction\":\"up\",\"is_question\":true,\"confidence\":0.9}. "
+            '{"intent":"change_cause","metric_slots":[{"role":"metric","phrase":"выручка"}],'
+            '"requested_direction":"up","is_question":true,"confidence":0.9}. '
             "Example: 'почему выручка падает?' => "
-            "{\"intent\":\"change_cause\",\"metric_slots\":[{\"role\":\"metric\",\"phrase\":\"выручка\"}],"
-            "\"requested_direction\":\"down\",\"is_question\":true,\"confidence\":0.9}. "
+            '{"intent":"change_cause","metric_slots":[{"role":"metric","phrase":"выручка"}],'
+            '"requested_direction":"down","is_question":true,"confidence":0.9}. '
             "Do not infer facts or metric codes."
         )
         try:
@@ -157,7 +166,9 @@ class QuestionPlanner:
         if not isinstance(slots, list):
             slots = fallback_plan.metric_slots
         try:
-            confidence = min(1.0, max(0.0, float(payload.get("confidence", fallback_plan.confidence))))
+            confidence = min(
+                1.0, max(0.0, float(payload.get("confidence", fallback_plan.confidence)))
+            )
         except (TypeError, ValueError):
             confidence = fallback_plan.confidence
         return QuestionPlan(
@@ -168,9 +179,13 @@ class QuestionPlanner:
                 for item in slots
                 if isinstance(item, dict)
             ],
-            evidence_type=str(payload.get("evidence_type") or self._evidence_type_for_intent(intent)),
+            evidence_type=str(
+                payload.get("evidence_type") or self._evidence_type_for_intent(intent)
+            ),
             answer_shape=str(payload.get("answer_shape") or fallback_plan.answer_shape),
-            requested_direction=str(payload.get("requested_direction") or fallback_plan.requested_direction),
+            requested_direction=str(
+                payload.get("requested_direction") or fallback_plan.requested_direction
+            ),
             is_question=bool(payload.get("is_question", fallback_plan.is_question)),
             confidence=confidence,
             warnings=[],
@@ -208,42 +223,69 @@ class QuestionPlanner:
         return llm_plan
 
     def _detect_intent(self, normalized_question: str) -> str:
-        has_relation_word = any(token in normalized_question for token in ("связ", "relation", "relations", "edge", "edges"))
+        has_relation_word = any(
+            token in normalized_question
+            for token in ("связ", "relation", "relations", "edge", "edges")
+        )
         has_overview_word = any(
             token in normalized_question
             for token in ("какие", "есть", "покажи", "список", "все", "обзор", "list", "show")
         )
         if any(token in normalized_question for token in ("гипотез", "hypothesis", "hypotheses")):
             return "hypotheses_overview"
-        if any(token in normalized_question for token in ("наблюден", "observation", "observations")):
+        if any(
+            token in normalized_question for token in ("наблюден", "observation", "observations")
+        ):
             return "observations_overview"
         if has_overview_word and any(token in normalized_question for token in ("граф", "graph")):
             return "relations_overview"
         if (
             has_overview_word
-            and any(token in normalized_question for token in ("метрик", "metric", "metrics", "показател"))
-            and not any(token in normalized_question for token in ("влия", "завис", "driver", "drivers"))
+            and any(
+                token in normalized_question
+                for token in ("метрик", "metric", "metrics", "показател")
+            )
+            and not any(
+                token in normalized_question for token in ("влия", "завис", "driver", "drivers")
+            )
         ):
             return "metrics_overview"
-        if any(token in normalized_question for token in ("pending", "подтвержд", "подтверд", "апрув", "approval", "кандидат")):
+        if any(
+            token in normalized_question
+            for token in ("pending", "подтвержд", "подтверд", "апрув", "approval", "кандидат")
+        ):
             return "pending_confirmations"
         if "провер" in normalized_question and (
-            has_relation_word or any(token in normalized_question for token in ("что", "какие", "которые"))
+            has_relation_word
+            or any(token in normalized_question for token in ("что", "какие", "которые"))
         ):
             return "pending_confirmations"
         if self._looks_like_relation_why_question(normalized_question):
             return "relation_why"
-        if re.search(r"(?:^|\s)влия(?:ет|ют)\s+ли\s+.+?\s+на\s+.+$", normalized_question, flags=re.IGNORECASE):
+        if re.search(
+            r"(?:^|\s)влия(?:ет|ют)\s+ли\s+.+?\s+на\s+.+$", normalized_question, flags=re.IGNORECASE
+        ):
             return "relation_why"
-        if re.search(r"(?:может|могут)\s+ли\s+.+?\s+влия(?:ть|ет|ют)\s+на\s+.+$", normalized_question, flags=re.IGNORECASE):
+        if re.search(
+            r"(?:может|могут)\s+ли\s+.+?\s+влия(?:ть|ет|ют)\s+на\s+.+$",
+            normalized_question,
+            flags=re.IGNORECASE,
+        ):
             return "relation_why"
-        if re.search(r"^(?:как|почему)\s+.+?\s+влия(?:ет|ют)\s+на\s+.+$", normalized_question, flags=re.IGNORECASE):
+        if re.search(
+            r"^(?:как|почему)\s+.+?\s+влия(?:ет|ют)\s+на\s+.+$",
+            normalized_question,
+            flags=re.IGNORECASE,
+        ):
             return "relation_why"
         if has_relation_word and has_overview_word:
             return "relations_overview"
         if self._looks_like_change_cause(normalized_question):
             return "change_cause"
-        if any(token in normalized_question for token in ("куда влияет", "на что влияет", "что зависит от", "what does")):
+        if any(
+            token in normalized_question
+            for token in ("куда влияет", "на что влияет", "что зависит от", "what does")
+        ):
             return "downstream"
         if any(
             token in normalized_question
@@ -279,12 +321,25 @@ class QuestionPlanner:
             phrase in normalized_question
             for phrase in ("почему", "из за чего", "из-за чего", "why")
         )
-        has_cause_prefix = has_cause_prefix or bool(re.search(r"причин\w*\s+изменени", normalized_question))
+        has_cause_prefix = has_cause_prefix or bool(
+            re.search(r"причин\w*\s+изменени", normalized_question)
+        )
         if not has_cause_prefix:
             return False
-        return bool(re.search(self.CHANGE_VERB_PATTERN, normalized_question, flags=re.IGNORECASE)) or any(
+        return bool(
+            re.search(self.CHANGE_VERB_PATTERN, normalized_question, flags=re.IGNORECASE)
+        ) or any(
             token in normalized_question
-            for token in ("рост", "вверх", "снижение", "падение", "изменени", "decline", "growth", "change")
+            for token in (
+                "рост",
+                "вверх",
+                "снижение",
+                "падение",
+                "изменени",
+                "decline",
+                "growth",
+                "change",
+            )
         )
 
     def _requested_change_direction(self, normalized_question: str) -> str:
@@ -293,7 +348,8 @@ class QuestionPlanner:
         ):
             return "up"
         if re.search(self.CHANGE_DOWN_PATTERN, normalized_question, flags=re.IGNORECASE) or any(
-            token in normalized_question for token in ("падение", "снижение", "вниз", "decline", "drop")
+            token in normalized_question
+            for token in ("падение", "снижение", "вниз", "decline", "drop")
         ):
             return "down"
         return ""
@@ -306,13 +362,20 @@ class QuestionPlanner:
             between_slots = self._extract_simple_between_slots(cleaned)
             if between_slots:
                 return between_slots
-            ambiguous_between = bool(re.search(r"\bмежду\s+.+\s+и\s+.+", cleaned, flags=re.IGNORECASE))
+            ambiguous_between = bool(
+                re.search(r"\bмежду\s+.+\s+и\s+.+", cleaned, flags=re.IGNORECASE)
+            )
         patterns = {
             "upstream": [
-                re.compile(r"(?:что|кто|какие(?:\s+\w+)*)\s+влия(?:ет|ют)\s+на\s+(.+)$", re.IGNORECASE),
+                re.compile(
+                    r"(?:что|кто|какие(?:\s+\w+)*)\s+влия(?:ет|ют)\s+на\s+(.+)$", re.IGNORECASE
+                ),
                 re.compile(r"от\s+чего\s+зависит\s+(.+)$", re.IGNORECASE),
                 re.compile(r"what\s+affects\s+(.+)$", re.IGNORECASE),
-                re.compile(r"(?:факторы|причины|драйверы)(?:\s+\w+)*\s+(?:влияющие\s+на|влияния\s+на|для)\s+(.+)$", re.IGNORECASE),
+                re.compile(
+                    r"(?:факторы|причины|драйверы)(?:\s+\w+)*\s+(?:влияющие\s+на|влияния\s+на|для)\s+(.+)$",
+                    re.IGNORECASE,
+                ),
                 re.compile(r"(?:factors|drivers)\s+(?:affecting|for)\s+(.+)$", re.IGNORECASE),
                 re.compile(r"из[\s-]*за\s+чего\s+(.+)$", re.IGNORECASE),
                 re.compile(r"причин[аы]?\s+(.+)$", re.IGNORECASE),
@@ -321,7 +384,9 @@ class QuestionPlanner:
                 re.compile(rf"почему\s+(.+?)\s+(?:{change_verb})(?:\s|$)", re.IGNORECASE),
                 re.compile(rf"почему\s+(?:{change_verb})\s+(.+)$", re.IGNORECASE),
                 re.compile(rf"why\s+is\s+(.+?)\s+(?:{change_verb})(?:\s|$)", re.IGNORECASE),
-                re.compile(rf"из[\s-]*за\s+чего\s+(.+?)\s+(?:{change_verb})(?:\s|$)", re.IGNORECASE),
+                re.compile(
+                    rf"из[\s-]*за\s+чего\s+(.+?)\s+(?:{change_verb})(?:\s|$)", re.IGNORECASE
+                ),
                 re.compile(rf"из[\s-]*за\s+чего\s+(?:{change_verb})\s+(.+)$", re.IGNORECASE),
                 re.compile(r"причин[аы]?\s+изменени[яй]?\s+(.+)$", re.IGNORECASE),
             ],
@@ -335,7 +400,9 @@ class QuestionPlanner:
                 re.compile(r"связан(?:а|о|ы)?\s+ли\s+(.+?)\s+с\s+(.+)$", re.IGNORECASE),
                 re.compile(r"(.+?)\s+связан(?:а|о|ы)?\s+ли\s+.+?\s+с\s+(.+)$", re.IGNORECASE),
                 re.compile(r"(?:^|\s)влия(?:ет|ют)\s+ли\s+(.+?)\s+на\s+(.+)$", re.IGNORECASE),
-                re.compile(r"(?:может|могут)\s+ли\s+(.+?)\s+влия(?:ть|ет|ют)\s+на\s+(.+)$", re.IGNORECASE),
+                re.compile(
+                    r"(?:может|могут)\s+ли\s+(.+?)\s+влия(?:ть|ет|ют)\s+на\s+(.+)$", re.IGNORECASE
+                ),
                 re.compile(r"(?:как|почему)?\s*(.+?)\s+влия(?:ет|ют)\s+на\s+(.+)$", re.IGNORECASE),
                 re.compile(r"между\s+(.+?)\s+и\s+(.+)$", re.IGNORECASE),
                 re.compile(r"(.+?)\s+связан(?:а|о|ы)?\s+с\s+(.+)$", re.IGNORECASE),
@@ -372,7 +439,9 @@ class QuestionPlanner:
 
     def _strip_metric_phrase(self, value: str) -> str:
         cleaned = normalize_phrase_text(value)
-        return re.sub(r"^(?:почему|это|эта|этот|эту|она|он|оно|а|и)\s+", "", cleaned, flags=re.IGNORECASE).strip()
+        return re.sub(
+            r"^(?:почему|это|эта|этот|эту|она|он|оно|а|и)\s+", "", cleaned, flags=re.IGNORECASE
+        ).strip()
 
     def _evidence_type_for_intent(self, intent: str) -> str:
         if intent in {"upstream", "downstream", "relation_why"}:

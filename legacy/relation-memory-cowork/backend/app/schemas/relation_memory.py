@@ -21,7 +21,13 @@ class DocumentParseStatus(BaseModel):
     filename: str
     file_type: str
     parser: str
-    status: Literal["parsed", "parsed_with_warnings", "unsupported_layout", "unsupported_file_type", "parse_failed"]
+    status: Literal[
+        "parsed",
+        "parsed_with_warnings",
+        "unsupported_layout",
+        "unsupported_file_type",
+        "parse_failed",
+    ]
     dataset_count: int = 0
     metric_count: int = 0
     dependency_count: int = 0

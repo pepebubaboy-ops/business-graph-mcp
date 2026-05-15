@@ -16,7 +16,9 @@ from pydantic import BaseModel, Field, model_validator
 
 
 MetricKind = Literal["observed", "derived", "external", "latent", "adjustment"]
-RelationKind = Literal["formula", "driver", "inverse_driver", "allocation", "constraint", "correlation"]
+RelationKind = Literal[
+    "formula", "driver", "inverse_driver", "allocation", "constraint", "correlation"
+]
 RelationOutputMode = Literal["level", "delta"]
 RelationStatus = Literal["draft", "active", "deprecated"]
 InputValueMode = Literal["level", "difference", "pct_change"]
@@ -151,7 +153,9 @@ class RelationDefinition(BaseModel):
         if not self.target_metric_code:
             raise BusinessMetricModelError(f"Relation {self.id} must declare target_metric_code.")
         if not self.expression:
-            raise BusinessMetricModelError(f"Relation {self.id} must declare a quantitative expression.")
+            raise BusinessMetricModelError(
+                f"Relation {self.id} must declare a quantitative expression."
+            )
         if not self.inputs:
             raise BusinessMetricModelError(f"Relation {self.id} must declare at least one input.")
         self.applies_to = {
@@ -160,7 +164,9 @@ class RelationDefinition(BaseModel):
             if _normalize_text(str(key))
         }
         if not 0.0 <= self.confidence <= 1.0:
-            raise BusinessMetricModelError(f"Relation {self.id} confidence must be between 0 and 1.")
+            raise BusinessMetricModelError(
+                f"Relation {self.id} confidence must be between 0 and 1."
+            )
         return self
 
 
@@ -180,7 +186,9 @@ class ObservationRecord(BaseModel):
         if not self.metric_code:
             raise BusinessMetricModelError("Observation metric_code cannot be empty.")
         if not self.period:
-            raise BusinessMetricModelError(f"Observation for {self.metric_code} must declare period.")
+            raise BusinessMetricModelError(
+                f"Observation for {self.metric_code} must declare period."
+            )
         return self
 
     @property
@@ -339,7 +347,9 @@ class ExpressionProgram:
         if isinstance(node, ast.Constant):
             if isinstance(node.value, (int, float, str, bool)) or node.value is None:
                 return node.value
-            raise BusinessMetricModelError(f"Unsupported constant in expression {self.expression!r}.")
+            raise BusinessMetricModelError(
+                f"Unsupported constant in expression {self.expression!r}."
+            )
         if isinstance(node, ast.Name):
             if node.id not in variables:
                 raise BusinessMetricModelError(
@@ -379,16 +389,24 @@ class ExpressionProgram:
             fn_name = node.func.id
             if fn_name == "iferror":
                 if len(node.args) != 2:
-                    raise BusinessMetricModelError(f"iferror() expects exactly two arguments in {self.expression!r}.")
+                    raise BusinessMetricModelError(
+                        f"iferror() expects exactly two arguments in {self.expression!r}."
+                    )
                 try:
                     return self._eval_node(node.args[0], variables)
                 except Exception:
                     return self._eval_node(node.args[1], variables)
             if fn_name == "if_":
                 if len(node.args) != 3:
-                    raise BusinessMetricModelError(f"if_() expects exactly three arguments in {self.expression!r}.")
+                    raise BusinessMetricModelError(
+                        f"if_() expects exactly three arguments in {self.expression!r}."
+                    )
                 condition = self._eval_node(node.args[0], variables)
-                return self._eval_node(node.args[1], variables) if condition else self._eval_node(node.args[2], variables)
+                return (
+                    self._eval_node(node.args[1], variables)
+                    if condition
+                    else self._eval_node(node.args[2], variables)
+                )
             fn = ALLOWED_CALLS[fn_name]
             args = [self._as_number(self._eval_node(arg, variables)) for arg in node.args]
             return fn(*args)
@@ -405,7 +423,11 @@ class BusinessMetricModelLoader:
         relations_data = self._read_yaml("relations.yaml", required=False) or []
         observations_data = self._read_yaml("observations.yaml", required=False) or []
 
-        metrics = metrics_data.get("metrics", metrics_data) if isinstance(metrics_data, dict) else metrics_data
+        metrics = (
+            metrics_data.get("metrics", metrics_data)
+            if isinstance(metrics_data, dict)
+            else metrics_data
+        )
         relations = (
             relations_data.get("relations", relations_data)
             if isinstance(relations_data, dict)
@@ -559,7 +581,13 @@ class BusinessMetricModelRuntime:
             "metric_count": len(self.bundle.metrics),
             "relation_count": len(self.bundle.relations),
             "observation_count": len(self.bundle.observations),
-            "active_formula_count": len([item for item in self.bundle.relations if item.status == "active" and item.relation_kind == "formula"]),
+            "active_formula_count": len(
+                [
+                    item
+                    for item in self.bundle.relations
+                    if item.status == "active" and item.relation_kind == "formula"
+                ]
+            ),
         }
 
     def trace_upstream(
@@ -572,7 +600,9 @@ class BusinessMetricModelRuntime:
         if target_metric_code not in self.metric_by_code:
             raise BusinessMetricModelError(f"Unknown metric: {target_metric_code}")
         root_slice = slice_filters or {}
-        queue: list[tuple[str, dict[str, str], list[dict[str, Any]]]] = [(target_metric_code, root_slice, [])]
+        queue: list[tuple[str, dict[str, str], list[dict[str, Any]]]] = [
+            (target_metric_code, root_slice, [])
+        ]
         paths: list[dict[str, Any]] = []
         seen: set[tuple[str, str, tuple[str, ...]]] = set()
         while queue:
@@ -671,7 +701,9 @@ class BusinessMetricModelRuntime:
             delta=(current.value - baseline.value) if current and baseline else None,
             primary_formula_relations=primary_formula_relations,
             secondary_driver_relations=secondary_driver_relations,
-            upstream_paths=self.trace_upstream(target_metric_code, slice_filters=slice_filters, max_hops=max_hops),
+            upstream_paths=self.trace_upstream(
+                target_metric_code, slice_filters=slice_filters, max_hops=max_hops
+            ),
         )
 
     def audit_relations(
@@ -891,19 +923,23 @@ class BusinessMetricModelRuntime:
         scenario: str,
         slice_filters: dict[str, str],
     ) -> RelationExplanation | None:
-        current_alias_values, baseline_alias_values, missing_inputs, alias_to_metric = self._alias_state_for_relation(
-            relation,
-            period=period,
-            baseline_period=baseline_period,
-            scenario=scenario,
-            slice_filters=slice_filters,
+        current_alias_values, baseline_alias_values, missing_inputs, alias_to_metric = (
+            self._alias_state_for_relation(
+                relation,
+                period=period,
+                baseline_period=baseline_period,
+                scenario=scenario,
+                slice_filters=slice_filters,
+            )
         )
         if missing_inputs:
             return None
         program = self._programs[relation.id]
         predicted_current = program.evaluate(current_alias_values)
         predicted_baseline = program.evaluate(baseline_alias_values)
-        alias_contributions = self._shapley_delta(program, baseline_alias_values, current_alias_values)
+        alias_contributions = self._shapley_delta(
+            program, baseline_alias_values, current_alias_values
+        )
         grouped: dict[str, float] = defaultdict(float)
         for alias, contribution in alias_contributions.items():
             grouped[alias_to_metric[alias]] += contribution
@@ -912,7 +948,9 @@ class BusinessMetricModelRuntime:
                 "metric_code": metric_code,
                 "contribution": round(contribution, 10),
             }
-            for metric_code, contribution in sorted(grouped.items(), key=lambda item: abs(item[1]), reverse=True)
+            for metric_code, contribution in sorted(
+                grouped.items(), key=lambda item: abs(item[1]), reverse=True
+            )
         ]
         return RelationExplanation(
             relation_id=relation.id,
@@ -936,7 +974,8 @@ class BusinessMetricModelRuntime:
         matched = [
             relation
             for relation in self.relations_by_target.get(metric_code, [])
-            if relation.status == "active" and self._relation_matches_slice(relation, normalized_slice)
+            if relation.status == "active"
+            and self._relation_matches_slice(relation, normalized_slice)
         ]
         return sorted(matched, key=lambda item: (-len(item.applies_to), item.id))
 
@@ -962,7 +1001,9 @@ class BusinessMetricModelRuntime:
         if not candidates:
             raise BusinessMetricModelError(f"No active formula relation matched {metric_code}.")
         best_specificity = len(candidates[0].applies_to)
-        best_candidates = [relation for relation in candidates if len(relation.applies_to) == best_specificity]
+        best_candidates = [
+            relation for relation in candidates if len(relation.applies_to) == best_specificity
+        ]
         if len(best_candidates) > 1:
             raise BusinessMetricModelError(
                 f"Ambiguous active formula relations for {metric_code} and slice {slice_filters or {}}: "
@@ -1008,7 +1049,8 @@ class BusinessMetricModelRuntime:
         current = {alias: current_aliases[alias] for alias in aliases}
         if len(aliases) > 7:
             return {
-                alias: program.evaluate({**baseline, alias: current[alias]}) - program.evaluate(baseline)
+                alias: program.evaluate({**baseline, alias: current[alias]})
+                - program.evaluate(baseline)
                 for alias in aliases
             }
         contributions = {alias: 0.0 for alias in aliases}
@@ -1053,11 +1095,11 @@ class BusinessMetricModelRuntime:
                         f"Relation {relation.id} references unknown metric {binding.metric_code}."
                     )
             if relation.status == "active" and relation.relation_kind == "formula":
-                formula_targets[(relation.target_metric_code, canonical_slice_key(relation.applies_to))].append(relation.id)
+                formula_targets[
+                    (relation.target_metric_code, canonical_slice_key(relation.applies_to))
+                ].append(relation.id)
         duplicated_targets = {
-            key: value
-            for key, value in formula_targets.items()
-            if len(value) > 1
+            key: value for key, value in formula_targets.items() if len(value) > 1
         }
         if duplicated_targets:
             raise BusinessMetricModelError(

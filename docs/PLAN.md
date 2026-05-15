@@ -34,7 +34,8 @@ curl http://localhost:8000/health
 
 Критерий готовности:
 
-- типы покрывают Metric, Process, Role, Department, System, Document, Dataset, Risk, Bottleneck, Automation, Decision;
+- типы покрывают Metric, Process, Role, Department, System, Document,
+  Dataset, Risk, Bottleneck, Automation, Decision;
 - relation status: `confirmed`, `candidate`, `rejected`;
 - tests validate serialization/deserialization.
 

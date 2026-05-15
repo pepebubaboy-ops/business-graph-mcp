@@ -210,14 +210,10 @@ class ExcelFormulaTranslator:
         if self._peek() is not None:
             raise UnsupportedExcelFormula(f"Unable to parse the full Excel formula {formula!r}.")
         used_aliases = {
-            alias
-            for alias in re.findall(r"\b(v\d+)\b", parsed.expression)
-            if alias in self.inputs
+            alias for alias in re.findall(r"\b(v\d+)\b", parsed.expression) if alias in self.inputs
         }
         filtered_inputs = {
-            alias: binding
-            for alias, binding in self.inputs.items()
-            if alias in used_aliases
+            alias: binding for alias, binding in self.inputs.items() if alias in used_aliases
         }
         return parsed.expression, filtered_inputs
 
@@ -245,8 +241,16 @@ class ExcelFormulaTranslator:
             operator_token = self._consume()
             next_precedence = precedence if operator_token.value == "^" else precedence + 1
             right = self._parse_expression(next_precedence)
-            operator_value = "==" if operator_token.value == "=" else "!=" if operator_token.value == "<>" else operator_token.value
-            left = ParsedToken(expression=f"({left.expression} {operator_value} {right.expression})")
+            operator_value = (
+                "=="
+                if operator_token.value == "="
+                else "!="
+                if operator_token.value == "<>"
+                else operator_token.value
+            )
+            left = ParsedToken(
+                expression=f"({left.expression} {operator_value} {right.expression})"
+            )
         return left
 
     def _parse_prefix(self) -> ParsedToken:
@@ -263,10 +267,18 @@ class ExcelFormulaTranslator:
         token = self._consume()
         if token.type == "OPERAND":
             if token.subtype == "NUMBER":
-                return ParsedToken(expression=str(float(token.value)), scalar_value=float(token.value))
+                return ParsedToken(
+                    expression=str(float(token.value)), scalar_value=float(token.value)
+                )
             if token.subtype == "TEXT":
-                text_value = token.value[1:-1] if token.value.startswith('"') and token.value.endswith('"') else token.value
-                return ParsedToken(expression=json.dumps(text_value, ensure_ascii=False), scalar_value=text_value)
+                text_value = (
+                    token.value[1:-1]
+                    if token.value.startswith('"') and token.value.endswith('"')
+                    else token.value
+                )
+                return ParsedToken(
+                    expression=json.dumps(text_value, ensure_ascii=False), scalar_value=text_value
+                )
             if token.subtype == "RANGE":
                 return self._parse_range_operand(token.value)
         if token.type == "PAREN" and token.subtype == "OPEN":
@@ -283,7 +295,11 @@ class ExcelFormulaTranslator:
 
     def _parse_function_args(self) -> list[ParsedToken]:
         args: list[ParsedToken] = []
-        if self._peek() is not None and self._peek().type == "FUNC" and self._peek().subtype == "CLOSE":
+        if (
+            self._peek() is not None
+            and self._peek().type == "FUNC"
+            and self._peek().subtype == "CLOSE"
+        ):
             self._consume()
             return args
         while True:
@@ -318,21 +334,27 @@ class ExcelFormulaTranslator:
         if normalized == "ABS":
             return ParsedToken(expression=f"abs({args[0].expression})")
         if normalized == "ROUND":
-            return ParsedToken(expression=f"round({args[0].expression}, {self._coerce_numeric_literal(args[1])})")
+            return ParsedToken(
+                expression=f"round({args[0].expression}, {self._coerce_numeric_literal(args[1])})"
+            )
         if normalized == "IFERROR":
             fallback = args[1].expression
             if isinstance(args[1].scalar_value, str):
                 fallback = "0"
             return ParsedToken(expression=f"iferror({args[0].expression}, {fallback})")
         if normalized == "IF":
-            return ParsedToken(expression=f"if_({args[0].expression}, {args[1].expression}, {args[2].expression})")
+            return ParsedToken(
+                expression=f"if_({args[0].expression}, {args[1].expression}, {args[2].expression})"
+            )
         if normalized == "VLOOKUP":
             return ParsedToken(expression=self._resolve_vlookup(args))
         if normalized == "SUMIFS":
             terms = self._resolve_sumifs(args)
             return ParsedToken(expression=self._sum_terms(terms))
         if normalized in {"CONCATENATE", "TEXT", "EDATE"}:
-            raise UnsupportedExcelFormula(f"Text/date Excel function {function_name} is not quantitative.")
+            raise UnsupportedExcelFormula(
+                f"Text/date Excel function {function_name} is not quantitative."
+            )
         raise UnsupportedExcelFormula(f"Unsupported Excel function {function_name}.")
 
     def _resolve_vlookup(self, args: list[ParsedToken]) -> str:
@@ -358,11 +380,15 @@ class ExcelFormulaTranslator:
         if matched_row is None:
             return "0"
         target_col = min_col + column_index - 1
-        return self._resolve_cell_expression(sheet_name, f"{get_column_letter(target_col)}{matched_row}")
+        return self._resolve_cell_expression(
+            sheet_name, f"{get_column_letter(target_col)}{matched_row}"
+        )
 
     def _resolve_sumifs(self, args: list[ParsedToken]) -> list[str]:
         if len(args) < 3 or len(args) % 2 == 0:
-            raise UnsupportedExcelFormula("SUMIFS expects one sum range and at least one criteria pair.")
+            raise UnsupportedExcelFormula(
+                "SUMIFS expects one sum range and at least one criteria pair."
+            )
         sum_reference = args[0].range_reference or args[0].reference
         if sum_reference is None:
             raise UnsupportedExcelFormula("SUMIFS sum range reference was not preserved.")
@@ -387,7 +413,9 @@ class ExcelFormulaTranslator:
             matched = True
             for criteria_cells, criterion in criteria_pairs:
                 criteria_sheet_name, criteria_coordinate = criteria_cells[sum_position]
-                criteria_value = self.workbook_values[criteria_sheet_name][criteria_coordinate].value
+                criteria_value = self.workbook_values[criteria_sheet_name][
+                    criteria_coordinate
+                ].value
                 if not self._criterion_matches(criteria_value, criterion):
                     matched = False
                     break
@@ -482,9 +510,7 @@ class ExcelFormulaTranslator:
             return existing_alias
         alias = f"v{len(self.inputs) + 1}"
         slice_overrides = {
-            key: value
-            for key, value in source_slice.items()
-            if self.target_slice.get(key) != value
+            key: value for key, value in source_slice.items() if self.target_slice.get(key) != value
         }
         self.inputs[alias] = RelationInputBinding(
             metric_code=metric_code,
@@ -521,7 +547,9 @@ class ExcelFormulaTranslator:
     def _coerce_numeric_literal(self, item: ParsedToken) -> float:
         if _is_number(item.scalar_value):
             return float(item.scalar_value)
-        if isinstance(item.scalar_value, str) and re.fullmatch(r"-?\d+(\.\d+)?", item.scalar_value.strip()):
+        if isinstance(item.scalar_value, str) and re.fullmatch(
+            r"-?\d+(\.\d+)?", item.scalar_value.strip()
+        ):
             return float(item.scalar_value.strip())
         try:
             return float(item.expression)
@@ -583,7 +611,14 @@ class ManagementReportsExcelModelBuilder:
 
         metrics.sort(key=lambda item: item.code)
         relations.sort(key=lambda item: item.id)
-        observations.sort(key=lambda item: (item.metric_code, item.period, item.scenario, json.dumps(item.slice, ensure_ascii=False, sort_keys=True)))
+        observations.sort(
+            key=lambda item: (
+                item.metric_code,
+                item.period,
+                item.scenario,
+                json.dumps(item.slice, ensure_ascii=False, sort_keys=True),
+            )
+        )
 
         return BusinessMetricModelBundle(
             model=ModelMetadata(
@@ -597,7 +632,9 @@ class ManagementReportsExcelModelBuilder:
             observations=observations,
         )
 
-    def _build_metric_definitions(self, sheet_contexts: dict[str, SheetContext]) -> list[MetricDefinition]:
+    def _build_metric_definitions(
+        self, sheet_contexts: dict[str, SheetContext]
+    ) -> list[MetricDefinition]:
         metrics: list[MetricDefinition] = []
         for sheet_context in sheet_contexts.values():
             for metric_context in sheet_context.metric_rows.values():
@@ -712,7 +749,9 @@ class ManagementReportsExcelModelBuilder:
                     )
         return observations, relations
 
-    def _analyze_sheet(self, *, workbook_name: str, formula_sheet, value_sheet) -> SheetContext | None:
+    def _analyze_sheet(
+        self, *, workbook_name: str, formula_sheet, value_sheet
+    ) -> SheetContext | None:
         header = self._detect_header(formula_sheet, value_sheet)
         if header is None:
             return None
@@ -768,7 +807,9 @@ class ManagementReportsExcelModelBuilder:
                 value = value_sheet.cell(row_index, col_index).value
                 if isinstance(value, (datetime, date)):
                     return _to_period(value)
-        raise BusinessMetricModelError(f"Unable to detect a report period in sheet {value_sheet.title!r}.")
+        raise BusinessMetricModelError(
+            f"Unable to detect a report period in sheet {value_sheet.title!r}."
+        )
 
     def _detect_metric_rows(
         self,
@@ -783,7 +824,11 @@ class ManagementReportsExcelModelBuilder:
         metric_rows: dict[int, MetricRowContext] = {}
         for row_index in range(1, value_sheet.max_row + 1):
             label = _normalize_text(value_sheet.cell(row_index, label_col).value)
-            if not label or label.lower() == "показатель" or label.lower().startswith("в том числе"):
+            if (
+                not label
+                or label.lower() == "показатель"
+                or label.lower().startswith("в том числе")
+            ):
                 continue
             if not self._row_has_metric_data(formula_sheet, value_sheet, row_index, label_col):
                 continue
@@ -804,16 +849,24 @@ class ManagementReportsExcelModelBuilder:
                 metric_code=metric_code,
                 label=label,
                 unit=unit,
-                kind="observed" if has_constant_numeric else "derived" if has_formula else "observed",
+                kind="observed"
+                if has_constant_numeric
+                else "derived"
+                if has_formula
+                else "observed",
                 category=_infer_category(label),
             )
         return metric_rows
 
-    def _row_has_metric_data(self, formula_sheet, value_sheet, row_index: int, label_col: int) -> bool:
+    def _row_has_metric_data(
+        self, formula_sheet, value_sheet, row_index: int, label_col: int
+    ) -> bool:
         for col_index in range(label_col + 1, formula_sheet.max_column + 1):
             formula_value = formula_sheet.cell(row_index, col_index).value
             observed_value = value_sheet.cell(row_index, col_index).value
-            if _is_number(observed_value) or (isinstance(formula_value, str) and formula_value.startswith("=")):
+            if _is_number(observed_value) or (
+                isinstance(formula_value, str) and formula_value.startswith("=")
+            ):
                 return True
         return False
 
@@ -832,7 +885,9 @@ class ManagementReportsExcelModelBuilder:
             for row_index in metric_rows:
                 observed_value = value_sheet.cell(row_index, col_index).value
                 formula_value = formula_sheet.cell(row_index, col_index).value
-                if _is_number(observed_value) or (isinstance(formula_value, str) and formula_value.startswith("=")):
+                if _is_number(observed_value) or (
+                    isinstance(formula_value, str) and formula_value.startswith("=")
+                ):
                     has_data = True
                     break
             if not has_data:
